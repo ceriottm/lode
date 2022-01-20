@@ -76,16 +76,13 @@ class Density_Projection_Calculator():
         Returns
         -------
         The projection coefficients as an array of dimension:
-            num_environments x num_chemical_species x num_lm_coefficients,
+            num_environ x num_chem_species x num_radial x num_lm_coefficients,
         where:
-            num_environments = total number of atoms in the system summed over
+            num_environ = total number of atoms in the system summed over
                                all frames
-            num_chemical_species = number of chemical species
+            num_chem_species = number of chemical species
+            num_radial = nmax
             num_lm_coefficients = (lmax+1)^2
-        
-        FUTURE PLAN: Also add an n-dependence for a radial basis with nmax
-        for comparison with real space version
-
         """
         return self.features
 
@@ -94,7 +91,7 @@ class Density_Projection_Calculator():
         """
         Return the gradients of the projection coefficients.
         The returned array has dimensions:
-            num_environments_squared x 3 x num_chemical_species x num_lm_coefficients,
+            num_environm_squared x 3 x num_chemical_species x num_radial x num_lm_coefficients,
         
         The factor of 3 corresponds to x,y,z-components.
         Otherwise, the specification is almost identical to get_features, except

@@ -20,7 +20,7 @@ def main():
     
     # Chemical shielding data set
     print('------------------------------------------------------------')
-    run_example_shiftML()
+    # run_example_shiftML()
 
 
 def run_example_BaTiO3():    
@@ -61,8 +61,10 @@ def run_example_BaTiO3():
     print('Number of frames =', len(frames))
     print('Total number of environments = ', sum([len(frame) for frame in frames]))
     print('Number of chemical species = ', len(species_dict))
+    print('nmax = ', 1)
     print('lmax = ', hypers['max_angular'])
     print('(lmax+1)^2 = ', (hypers['max_angular']+1)**2)
+    print('Note: nmax=1 by default for 1/r LODE')
     
     # Estimate required time to compute features for all frames
     print('\nComputational cost:')
