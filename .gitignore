@@ -127,3 +127,11 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+#Cached and output data
+.pdf
+.png
+.npy
+
+# MacOS
+.DS_Store
