@@ -12,12 +12,11 @@ sys.path.append("../")
 import numpy as np
 
 from ase.io import read
-from sklearn.model_selection import train_test_split
 
 from pylode.projection_coeffs import Density_Projection_Calculator as LODE
 
 HYPERS_LODE = dict(
-    max_angular=6,
+    max_angular=2,
     cutoff_radius=3,
     potential_exponent=1,  # currently, only the exponent p=1 is supported
     compute_gradients=False)
@@ -35,11 +34,6 @@ parser.add_argument('-i',
                     type=str,
                     help="slicing string for trjectory slicing",
                     default=":")
-parser.add_argument('-r',
-                    dest='f_train',
-                    type=float,
-                    help="Factor of the train set picked from the total set",
-                    default=0.75)
 parser.add_argument('-s',
                     dest='smearing',
                     type=float,
@@ -66,17 +60,9 @@ species_dict = {k: i for i, k in enumerate(global_species)}
 for frame in frames:
     frame.wrap()
 
-# Get frames for test set
-i_train = train_test_split(np.arange(len(frames)),
-                           train_size=args.f_train,
-                           random_state=0)[0]
-
-frames_train = [frames[i] for i in i_train]
-
 HYPERS_LODE["smearing"] = args.smearing
 
 calculator = LODE(**HYPERS_LODE)
-lode_rep = calculator.transform(frames, species_dict)
-X_raw = lode_rep.get_features(calculator)
+calculator.transform(frames, species_dict)
 
-np.save(args.output, X_raw)
+np.save(args.output, calculator.get_features())
