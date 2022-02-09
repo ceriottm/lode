@@ -11,8 +11,9 @@ from scipy.special import spherical_jn # arguments (n,z)
 
 try:
     from scipy.integrate import simpson
-except ImportError: # scipy <= 1.5.4
+except ImportError:  # scipy <= 1.5.4
     from scipy.integrate import simps as simpson
+
 
 # Compute the inner product of two functions defined over [0,rcut]
 # using the inner product derived from the spherical integral
