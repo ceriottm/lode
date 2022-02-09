@@ -6,17 +6,20 @@ Created on Tue Mar 16 19:42:22 2021
 """
 
 import numpy as np
-from scipy.special import spherical_jn # arguments (n,z)
 from scipy.interpolate import CubicSpline
-from scipy import integrate
+from scipy.special import spherical_jn # arguments (n,z)
 
+try:
+    from scipy.integrate import simpson
+except ImportError: # scipy <= 1.5.4
+    from scipy.integrate import simps as simpson
 
 # Compute the inner product of two functions defined over [0,rcut]
 # using the inner product derived from the spherical integral
 def innerprod(xx, yy1, yy2):
     # Generate the integrand according to int_0^inf x^2*f1(x)*f2(x)
     integrand = xx * xx * yy1 * yy2
-    return integrate.simpson(integrand, xx)
+    return simpson(integrand, xx)
 
 
 def radial_projection_lode(lmax, rcut, kmax, Nradial=1000,
