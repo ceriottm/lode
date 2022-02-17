@@ -14,7 +14,7 @@ from ase.io import read
 
 from pylode.projection_coeffs import Density_Projection_Calculator as LODE
 
-def lode_get_features(frames, **hypers):
+def lode_get_features(frames, show_progress=False, **hypers):
     """Calculate LODE feature array from an atomic dataset.
     
     Asssuming a constant number of atoms in each set.
@@ -23,6 +23,8 @@ def lode_get_features(frames, **hypers):
     ----------
     frames : list[ase.Atoms]
         List of datasets for calculating features
+    show_progress : bool
+        Show progress bar
     hypers : kwargs
         Kwargs of hyperparameters. 
         See pylode.Density_Projection_Calculator for details.
@@ -34,19 +36,18 @@ def lode_get_features(frames, **hypers):
     """
     n_frames = len(frames)
     n_atoms = len(frames[0])
-
-    # Get atomic species in dataset
-    global_species = set()
+    
+    species_dict = {}
     for frame in frames:
-        global_species.update(frame.get_chemical_symbols())
-    species_dict = {k: i for i, k in enumerate(global_species)}
-
-    # Move atoms in unitcell
-    for frame in frames:
+        # Move atoms in unitcell
         frame.wrap()
+        #Get atomic species in dataset
+        species_dict.update({atom.symbol: atom.number for atom in frame})
 
     calculator = LODE(**hypers)
-    calculator.transform(frames, species_dict)
+    calculator.transform(frames=frames,
+                         species_dict=species_dict,
+                         show_progress=show_progress)
 
     X = calculator.get_features()
     # reshape lode features in the shape (n_sets, n_atoms, n_features)
@@ -112,7 +113,9 @@ def main():
         compute_gradients=args.compute_gradients,
         smearing=args.smearing)
 
-    np.save(args.outfile, lode_get_features(frames, **hypers_lode))
+    np.save(args.outfile, lode_get_features(frames,
+                                            show_progress=True,
+                                            **hypers_lode))
 
 
 if __name__=="__main__":

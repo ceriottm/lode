@@ -10,6 +10,11 @@ angular channel l=0,1,2,...,lmax is supported.
 # Generic imports
 import numpy as np
 
+try:
+    from tqdm import tqdm
+except ImportError:
+    tqdm = (lambda i, **kwargs: i)
+
 # Rascal imports (source files in same directory)
 from .kvec_generator import Kvector_Generator
 from .radial_projection import radial_projection_lode, radial_projection_gto
@@ -117,7 +122,7 @@ class Density_Projection_Calculator():
         return self.feature_gradients
 
 
-    def transform(self, frames, species_dict):
+    def transform(self, frames, species_dict, show_progress=False):
         """
         Computes the features and (if compute_gradients == True) gradients
         for all the provided frames. The features and gradients can be
@@ -131,6 +136,8 @@ class Density_Projection_Calculator():
         species_dict: Dictionary
             All chemical species present in the system with their mapping to
             indices, e.g. for BaTiO3: {'O':0, 'Ti':1, 'Ba':2}
+        show_progress : bool
+            Show progress bar for frame analysis
 
         Returns
         -------
@@ -155,8 +162,28 @@ class Density_Projection_Calculator():
         # For each frame, compute the projection coefficients
         current_index = 0
         gradient_index = 0
-        for number_of_atoms, frame in zip(num_atoms_per_frame, frames):
-            results = self.transform_single_frame(frame, species_dict)
+
+        if show_progress:
+            frame_generator = tqdm(frames)
+        else:
+            frame_generator = frames
+
+        self.representation_info = np.zeros([len(frames) * np.sum(num_atoms_per_frame), 3])
+        # Use a dens number for indices .i.e 11, 17 -> 0, 1
+        _species_dict = {symbol: i for i, symbol in enumerate(species_dict)}
+
+        index = 0
+        for i_frame, frame in enumerate(frame_generator):
+
+            number_of_atoms = num_atoms_per_frame[i_frame]
+
+            for i_atom, atom in enumerate(frame):
+                self.representation_info[index, 0] = i_frame;
+                self.representation_info[index, 1] = i_atom;
+                self.representation_info[index, 2] = atom.number;
+                index += 1
+
+            results = self.transform_single_frame(frame, _species_dict)
 
             # Returned values are only the features
             if not self.compute_gradients:
@@ -168,7 +195,6 @@ class Density_Projection_Calculator():
 
             current_index += number_of_atoms
             gradient_index += number_of_atoms**2
-
 
     def transform_single_frame(self, frame, species_dict):
         """
@@ -319,6 +345,12 @@ class Density_Projection_Calculator():
             return frame_features
         else:
             return frame_features, frame_gradients
+
+    def get_representation_info(self):
+        return self.representation_info
+
+    def get_gradients_info(self):
+        return np.zeros([len(self.feature_gradients),5])
 
 
 
