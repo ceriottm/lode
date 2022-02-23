@@ -178,9 +178,9 @@ class Density_Projection_Calculator():
             number_of_atoms = num_atoms_per_frame[i_frame]
 
             for i_atom, atom in enumerate(frame):
-                self.representation_info[index, 0] = i_frame;
-                self.representation_info[index, 1] = i_atom;
-                self.representation_info[index, 2] = atom.number;
+                self.representation_info[index, 0] = i_frame
+                self.representation_info[index, 1] = i_atom
+                self.representation_info[index, 2] = atom.number
                 index += 1
 
             results = self.transform_single_frame(frame, _species_dict)
@@ -245,10 +245,9 @@ class Density_Projection_Calculator():
         # Fourier transform of density times Fourier transform of potential
         # This is the line where using Gaussian or 1/r^p for different p are
         # distinguished
-        if self.potential_exponent == 0:
-            G_k = np.exp(-0.5*(kvecnorms*self.smearing)**2)
-        elif self.potential_exponent == 1:
-            G_k = 4* np.pi * np.exp(-0.5*(kvecnorms*self.smearing)**2) / kvecnorms**2
+        G_k = np.exp(-0.5 * (kvecnorms*self.smearing)**2)
+        if self.potential_exponent == 1:
+            G_k *= 4 * np.pi / kvecnorms**2
 
         # Spherical harmonics evaluated at the k-vectors
         # for angular projection
