@@ -26,7 +26,7 @@ class Density_Projection_Calculator():
     Compute the spherical expansion coefficients
     """
 
-    def __init__(self, **hypers):
+    def __init__(self, radial_basis="monomial", **hypers):
         """
         Initialize the calculator using the hyperparameters.
         All the needed splines that only depend on the hyperparameters
@@ -42,6 +42,9 @@ class Density_Projection_Calculator():
                 p=0 uses Gaussian densities (only for comparison with rascal)
                 p=2,3,4,... not yet implemented (easy to add if desired).
 
+        radial_basis : str
+            The radial basis. Currently implemented are 'GTO' and 'monomial'
+
         """
         # Store the provided hyperparameters
         self.smearing = hypers['smearing']
@@ -49,31 +52,33 @@ class Density_Projection_Calculator():
         self.cutoff_radius = hypers['cutoff_radius']
         self.potential_exponent = hypers['potential_exponent']
         self.compute_gradients = hypers['compute_gradients']
-        if 'max_radial' in hypers.keys():
-            self.max_radial = hypers['max_radial']
-        else:
-            self.max_radial = 1
+        self.radial_basis = radial_basis
+        self.max_radial = hypers['max_radial']
 
         # Prepare radial basis for specified exponent (currently, only defaults)
         assert self.potential_exponent in [0,1], "potential_exponent has to be one of [0,1] for now"
         # LODE using Coulombic, i.e. 1/r, densities
-        if self.potential_exponent == 1:
+        if self.radial_basis == "monomial":
             # Only use one radial basis r^l for each angular channel l,
             # leading to a total of (lmax+1)^2 features
             self.num_features_bare = (self.max_angular+1)**2
-            assert self.max_radial == 1 # only optimal basis for now
+            if self.max_radial != 1:
+                raise ValueError("1 is the only optimal basis for now")
             # Initialize radial projector
             self.radial_proj = radial_projection_lode(self.max_angular,
                                                       self.cutoff_radius,
                                                       np.pi/self.smearing)
 
         # Gaussian for comparison with real space implementation
-        elif self.potential_exponent == 0:
+        elif self.radial_basis == "GTO":
             self.num_features_bare = (self.max_angular+1)**2 * self.max_radial
             self.radial_proj = radial_projection_gto(self.max_angular,
                                                      self.max_radial,
                                                      self.cutoff_radius,
                                                      np.pi/self.smearing)
+        else:
+            raise ValueError(f"{self.radial_basis} is not an implemented"
+                              " basis. Try 'monomial' or 'GTO'.")
 
     def get_features(self):
         """
@@ -261,10 +266,7 @@ class Density_Projection_Calculator():
         k_dep_factor = np.zeros((num_kvecs, nmax, num_lm)) # combined k-dependent part
         for l in range(lmax+1):
             for n in range(nmax):
-                if self.potential_exponent == 1:
-                    k_dep_factor[:, n, l**2:(l+1)**2] = np.atleast_2d(G_k * I_nl[:,l]).T * Y_lm[:, l**2:(l+1)**2]
-                elif self.potential_exponent == 0:
-                    k_dep_factor[:, n, l**2:(l+1)**2] = np.atleast_2d(G_k * I_nl[:,n,l]).T * Y_lm[:, l**2:(l+1)**2]
+                k_dep_factor[:, n, l**2:(l+1)**2] = np.atleast_2d(G_k * I_nl[:,n,l]).T * Y_lm[:, l**2:(l+1)**2]
 
         ###
         # Step 2: Structure factors:
