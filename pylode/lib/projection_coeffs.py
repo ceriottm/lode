@@ -52,25 +52,27 @@ class Density_Projection_Calculator():
         self.cutoff_radius = hypers['cutoff_radius']
         self.potential_exponent = hypers['potential_exponent']
         self.compute_gradients = hypers['compute_gradients']
-        self.radial_basis = radial_basis
+        self.radial_basis = radial_basis.lower()
         self.max_radial = hypers['max_radial']
 
         # Prepare radial basis for specified exponent (currently, only defaults)
-        assert self.potential_exponent in [0,1], "potential_exponent has to be one of [0,1] for now"
+        if self.potential_exponent not in [0,1]:
+            raise ValueError("Potential exponent has to be one of 0 or 1 for now.")
         # LODE using Coulombic, i.e. 1/r, densities
         if self.radial_basis == "monomial":
+            if self.max_radial != 1:
+                raise ValueError("1 is the only optimal basis for now")
             # Only use one radial basis r^l for each angular channel l,
             # leading to a total of (lmax+1)^2 features
             self.num_features_bare = (self.max_angular+1)**2
-            if self.max_radial != 1:
-                raise ValueError("1 is the only optimal basis for now")
+
             # Initialize radial projector
             self.radial_proj = radial_projection_lode(self.max_angular,
                                                       self.cutoff_radius,
                                                       np.pi/self.smearing)
 
         # Gaussian for comparison with real space implementation
-        elif self.radial_basis == "GTO":
+        elif self.radial_basis == "gto":
             self.num_features_bare = (self.max_angular+1)**2 * self.max_radial
             self.radial_proj = radial_projection_gto(self.max_angular,
                                                      self.max_radial,

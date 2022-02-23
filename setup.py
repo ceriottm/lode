@@ -11,4 +11,11 @@ setup(name='pyLODE',
       packages=find_packages(),
       package_dir={'': '.'},
       py_modules=[splitext(basename(i))[0] for i in glob("*.py")],
-      )
+      install_requires=['ase', 'numpy', 'scipy'],
+      extras_require={"progressbar": ['tqdm']},
+      entry_points={
+        'console_scripts': [
+            'pylode = pylode.utilities.precompute_lode:main',
+            ]
+      },
+)

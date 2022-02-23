@@ -12,7 +12,7 @@ sys.path.append("../")
 import numpy as np
 from ase.io import read
 
-from pylode.projection_coeffs import Density_Projection_Calculator as LODE
+from pylode import Density_Projection_Calculator as LODE
 
 def lode_get_features(frames, show_progress=False, **hypers):
     """Calculate LODE feature array from an atomic dataset.
@@ -45,9 +45,12 @@ def lode_get_features(frames, show_progress=False, **hypers):
         species_dict.update({atom.symbol: atom.number for atom in frame})
 
     calculator = LODE(**hypers)
+
     calculator.transform(frames=frames,
                          species_dict=species_dict,
                          show_progress=show_progress)
+    
+
 
     X = calculator.get_features()
     # reshape lode features in the shape (n_sets, n_atoms, n_features)
@@ -92,6 +95,25 @@ def main():
                         "Note that computational cost scales "
                         "cubically with 1/smearing.",
                         default=1)
+    parser.add_argument("-b",
+                        dest="radial_basis",
+                        type=str,
+                        default="monomial",
+                        const="monomial",
+                        nargs='?',
+                        choices=["monomial", "GTO"],
+                        help="The radial basis. Currently "
+                        "implemented are 'GTO' and 'monomial'.")
+    parser.add_argument("-e",
+                        dest="potential_exponent",
+                        type=int,
+                        default=1,
+                        const=1,
+                        nargs='?',
+                        choices=[0, 1],
+                        help="potential exponent: "
+                        "p=0 uses Gaussian densities, "
+                        "p=1 is LODE using 1/r (Coulomb) densities")
     parser.add_argument('-g',
                         dest='compute_gradients',
                         action='store_true',
@@ -104,19 +126,9 @@ def main():
 
     args = parser.parse_args()
     frames = read(args.input_file, index=args.index)
-
-    hypers_lode = dict(
-        potential_exponent=1,  # currently, only the exponent p=1 is supported
-        max_radial=args.max_radial,
-        max_angular=args.max_angular,
-        cutoff_radius=args.cutoff_radius,
-        compute_gradients=args.compute_gradients,
-        smearing=args.smearing)
-
     np.save(args.outfile, lode_get_features(frames,
                                             show_progress=True,
-                                            **hypers_lode))
-
+                                            **args.__dict__))
 
 if __name__=="__main__":
     main()
