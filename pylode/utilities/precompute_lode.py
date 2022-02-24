@@ -31,7 +31,7 @@ def lode_get_features(frames, show_progress=False, **hypers):
         
     Returns
     -------
-    X : np.ndarray of shape (n_sets, n_atoms, n_)
+    X : np.ndarray of shape (n_sets, n_atoms, n_chem_species, max_radial, (max_angular + 1)**2)
         feature array
     """
     n_frames = len(frames)
@@ -53,8 +53,8 @@ def lode_get_features(frames, show_progress=False, **hypers):
 
 
     X = calculator.get_features()
-    # reshape lode features in the shape (n_sets, n_atoms, n_features)
-    X = X.reshape(n_frames, n_atoms, np.prod(X.shape[1:]))
+    # reshape lode features
+    X = X.reshape(n_frames, n_atoms, *X.shape[1:])
     
     return X
 
