@@ -49,14 +49,8 @@ def lode_get_features(frames, show_progress=False, **hypers):
     calculator.transform(frames=frames,
                          species_dict=species_dict,
                          show_progress=show_progress)
-    
 
-
-    X = calculator.get_features()
-    # reshape lode features
-    X = X.reshape(n_frames, n_atoms, *X.shape[1:])
-    
-    return X
+    return calculator.get_features()
 
 
 def main():
