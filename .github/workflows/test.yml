@@ -20,3 +20,10 @@ jobs:
       run: python3 -m pip install . pytest -U
     - name: Test
       run: pytest tests
+    # Upload plots generated from tests
+    - name: Save output
+      if: always() # Always try to upload data even if code fails somewhere
+      uses: actions/upload-artifact@v2
+      with:
+        name: Plots
+        path: ./*.png
