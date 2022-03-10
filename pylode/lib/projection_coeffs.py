@@ -268,7 +268,10 @@ class Density_Projection_Calculator():
         k_dep_factor = np.zeros((num_kvecs, nmax, num_lm)) # combined k-dependent part
         for l in range(lmax+1):
             for n in range(nmax):
-                k_dep_factor[:, n, l**2:(l+1)**2] = np.atleast_2d(G_k * I_nl[:,n,l]).T * Y_lm[:, l**2:(l+1)**2]
+                if self.radial_basis == "monomial":
+                    k_dep_factor[:, n, l**2:(l+1)**2] = np.atleast_2d(G_k * I_nl[:,l]).T * Y_lm[:, l**2:(l+1)**2]
+                elif self.radial_basis == "gto":
+                    k_dep_factor[:, n, l**2:(l+1)**2] = np.atleast_2d(G_k * I_nl[:,n,l]).T * Y_lm[:, l**2:(l+1)**2]
 
         ###
         # Step 2: Structure factors:
