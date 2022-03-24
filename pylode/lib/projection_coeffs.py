@@ -9,6 +9,7 @@ angular channel l=0,1,2,...,lmax is supported.
 
 # Generic imports
 import numpy as np
+from scipy.special import gamma
 
 try:
     from tqdm import tqdm
@@ -350,13 +351,31 @@ class Density_Projection_Calculator():
                         frame_gradients[ineigh + icenter * num_atoms, 2, i_chem] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[2]
 
         if self.exclude_center:
+            # Only for l = 0 and a = a_center
             for icenter in range(num_atoms):
-                frame_features[icenter, icenter] -= 0
+                center_coeff = self._get_center_coeffs()
+                frame_features[icenter, icenter, :, 0] -= center_coeff
 
         if self.compute_gradients:
             return frame_features, frame_gradients
         else:
             return frame_features
+
+    def _get_center_coeffs(self):
+        """Calculate the coefficients for subtracting the center contribution."""
+
+        sigma_radial = np.ones(self.max_radial, dtype=float)
+        sigma_radial *= self.cutoff_radius / self.max_radial
+
+        sigmatempsq = 1 / (1 / self.smearing**2 + 1 / sigma_radial**2)
+        neff = (3 + np.arange(self.max_radial)) / 2
+
+        normalization = 1 / np.sqrt(2 * np.pi * self.smearing**2)**3
+
+        center_coeffs = 2 * np.pi * normalization
+        center_coeffs = (2 * sigmatempsq)**neff * gamma(neff)
+
+        return center_coeffs
 
     def get_representation_info(self):
         return self.representation_info
