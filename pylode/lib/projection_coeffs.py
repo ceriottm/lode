@@ -310,12 +310,8 @@ class Density_Projection_Calculator():
 
         # Loop over center atom
         for icenter in range(num_atoms):
-
-            neighbor_list = list(range(num_atoms))
-            if self.exclude_center:
-                neighbor_list.pop(icenter)
-
-            for ineigh in neighbor_list:
+            # Loop over all atoms in the structure (including central atom)
+            for ineigh in range(num_atoms):
                 i_chem = int(iterator_species[ineigh]) # index describing chemical species
 
                 if self.potential_exponent == 0: # add constant term
@@ -336,9 +332,8 @@ class Density_Projection_Calculator():
                     # Update features
                     # print('Current features =\n', np.round(frame_features[icenter, i_chem].T, 8))
                     # print('Additional term =\n', np.round(global_factor * struc_factor * k_dep_factor[ik], 8).T)
-                    frame_features[icenter, i_chem] += 2* global_factor * struc_factor * k_dep_factor[ik]
+                    frame_features[icenter, i_chem] += 2 * global_factor * struc_factor * k_dep_factor[ik]
                     # print('New features =\n', np.round(frame_features[icenter, i_chem].T, 8))
-
 
                     # Update gradients
                     if self.compute_gradients:
@@ -354,11 +349,14 @@ class Density_Projection_Calculator():
                         frame_gradients[ineigh + icenter * num_atoms, 1, i_chem] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[1]
                         frame_gradients[ineigh + icenter * num_atoms, 2, i_chem] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[2]
 
+        if self.exclude_center:
+            for icenter in range(num_atoms):
+                frame_features[icenter, icenter] -= 0
 
-        if not self.compute_gradients:
-            return frame_features
-        else:
+        if self.compute_gradients:
             return frame_features, frame_gradients
+        else:
+            return frame_features
 
     def get_representation_info(self):
         return self.representation_info
