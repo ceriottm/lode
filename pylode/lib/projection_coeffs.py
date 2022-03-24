@@ -61,7 +61,7 @@ class Density_Projection_Calculator():
         # LODE using Coulombic, i.e. 1/r, densities
         if self.radial_basis == "monomial":
             if self.max_radial != 1:
-                raise ValueError("1 is the only optimal basis for now")
+                raise ValueError("For monomial basis only max_radial=1 is allowed.")
             # Only use one radial basis r^l for each angular channel l,
             # leading to a total of (lmax+1)^2 features
             self.num_features_bare = (self.max_angular+1)**2
