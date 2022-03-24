@@ -26,7 +26,10 @@ class Density_Projection_Calculator():
     Compute the spherical expansion coefficients
     """
 
-    def __init__(self, radial_basis="monomial", **hypers):
+    def __init__(self,
+                 radial_basis="monomial",
+                 exclude_center=True,
+                 **hypers):
         """
         Initialize the calculator using the hyperparameters.
         All the needed splines that only depend on the hyperparameters
@@ -34,6 +37,10 @@ class Density_Projection_Calculator():
 
         Parameters
         ----------
+        radial_basis : str
+            The radial basis. Currently implemented are 'GTO' and 'monomial'
+        exclude_center : bool
+            Exclude contribution from the central atom.
         **hypers :
             Mostly the same as in librascal. The differences are that:
             1. max_radial is optional (only needed for comparison)
@@ -41,10 +48,6 @@ class Density_Projection_Calculator():
                 p=1 is LODE using 1/r (Coulomb) densities
                 p=0 uses Gaussian densities (only for comparison with rascal)
                 p=2,3,4,... not yet implemented (easy to add if desired).
-
-        radial_basis : str
-            The radial basis. Currently implemented are 'GTO' and 'monomial'
-
         """
         # Store the provided hyperparameters
         self.smearing = hypers['smearing']
@@ -54,6 +57,7 @@ class Density_Projection_Calculator():
         self.compute_gradients = hypers['compute_gradients']
         self.radial_basis = radial_basis.lower()
         self.max_radial = hypers['max_radial']
+        self.exclude_center = exclude_center
 
         # Prepare radial basis for specified exponent (currently, only defaults)
         if self.potential_exponent not in [0,1]:
@@ -306,8 +310,12 @@ class Density_Projection_Calculator():
 
         # Loop over center atom
         for icenter in range(num_atoms):
-            # Loop over all atoms in the structure (including center atom)
-            for ineigh in range(num_atoms):
+
+            neighbor_list = list(range(num_atoms))
+            if self.exclude_center:
+                neighbor_list.pop(icenter)
+
+            for ineigh in neighbor_list:
                 i_chem = int(iterator_species[ineigh]) # index describing chemical species
 
                 if self.potential_exponent == 0: # add constant term

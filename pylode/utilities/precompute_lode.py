@@ -13,9 +13,9 @@ from pylode import Density_Projection_Calculator as LODE
 
 def lode_get_features(frames, show_progress=False, **hypers):
     """Calculate LODE feature array from an atomic dataset.
-    
+
     Asssuming a constant number of atoms in each set.
-    
+
     Parameters
     ----------
     frames : list[ase.Atoms]
@@ -23,17 +23,15 @@ def lode_get_features(frames, show_progress=False, **hypers):
     show_progress : bool
         Show progress bar
     hypers : kwargs
-        Kwargs of hyperparameters. 
+        Kwargs of hyperparameters.
         See pylode.Density_Projection_Calculator for details.
-        
+
     Returns
     -------
     X : np.ndarray of shape (n_sets, n_atoms, n_chem_species, max_radial, (max_angular + 1)**2)
         feature array
     """
-    n_frames = len(frames)
-    n_atoms = len(frames[0])
-    
+
     species_dict = {}
     for frame in frames:
         # Move atoms in unitcell
@@ -105,6 +103,10 @@ def main():
                         help="potential exponent: "
                         "p=0 uses Gaussian densities, "
                         "p=1 is LODE using 1/r (Coulomb) densities")
+    parser.add_argument('-c',
+                        dest='exclude_center',
+                        action='store_true',
+                        help="Exclude contribution from the central atom.")
     parser.add_argument('-g',
                         dest='compute_gradients',
                         action='store_true',
