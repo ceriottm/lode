@@ -304,7 +304,7 @@ class Density_Projection_Calculator():
         # Step 3: Main loop:
         #   Iterate over all atoms to evaluate the projection coefficients
         ###
-        global_factor = 4 * np.pi / frame.get_volume()
+        global_factor = np.power(4 * np.pi, 1.5) / frame.get_volume()
         struc_factor = np.zeros((lmax+1)**2)
         struc_factor_grad = np.zeros((lmax+1)**2)
 
