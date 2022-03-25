@@ -118,7 +118,8 @@ def main():
                         default="precomputed_lode")
 
     args = parser.parse_args()
-    frames = read(args.input_file, index=args.index)
+    frames = read(args.__dict__.pop("input_file"),
+                  index=args.__dict__.pop("index"))
     np.save(args.outfile, lode_get_features(frames,
                                             show_progress=True,
                                             **args.__dict__))
