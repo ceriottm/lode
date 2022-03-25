@@ -9,6 +9,7 @@ angular channel l=0,1,2,...,lmax is supported.
 
 # Generic imports
 import numpy as np
+from scipy.special import erf
 
 try:
     from tqdm import tqdm
@@ -48,7 +49,7 @@ class DensityProjectionCalculator():
     potential_exponent : int
         potential exponent: p=0 uses Gaussian densities,
         p=1 is LODE using 1/r (Coulomb) densities"
-    subtract_self : bool
+    subtract_center_contribution : bool
         Subtract contribution from the central atom.
 
     Attributes
@@ -97,7 +98,8 @@ class DensityProjectionCalculator():
                  radial_basis,
                  compute_gradients=False,
                  potential_exponent=1,
-                 subtract_self=False):
+                 subtract_center_contribution=False):
+        # Store the input variables
         self.max_radial = max_radial
         self.max_angular = max_angular
         self.cutoff_radius = cutoff_radius
@@ -105,24 +107,44 @@ class DensityProjectionCalculator():
         self.smearing = smearing
         self.potential_exponent = potential_exponent
         self.compute_gradients = compute_gradients
-        self.subtract_self = subtract_self
+        self.subtract_center_contribution = subtract_center_contribution
 
+        # Make sure that the provided parameters are consistent
         if self.potential_exponent not in [0, 1]:
             raise ValueError("Potential exponent has to be one of 0 or 1!")
 
-        if self.radial_basis not in ["monomial", "gto"]:
+        if self.radial_basis not in ["monomial", "gto", "gto_primitive"]:
             raise ValueError(f"{self.radial_basis} is not an implemented"
                               " basis. Try 'monomial' or 'GTO'.")
 
         if self.radial_basis == "monomial" and self.max_radial != 1:
             raise ValueError("For monomial basis only `max_radial=1` "
                              "is allowed.")
-
+        
+        # Auxilary quantity: the actual number of features is this number
+        # times the number of chemical species
         self.num_features_bare = self.max_radial * (self.max_angular + 1)**2
+
+        # Preparation for the extra steps in case the contribution to
+        # the density by the center atom is to be subtracted
+        if self.subtract_center_contribution:
+            if potential_exponent == 0:
+                prefac = 1./np.power(2*np.pi*self.smearing**2,1.5)
+                density = lambda x: prefac * np.exp(-0.5*x**2/self.smearing)
+            elif potential_exponent == 1:
+                density = lambda x: erf(x/self.smearing)/x # TODO need to take care of singularity
+        else:
+            density = None
+
+        # Initialize radial basis class to precompute the quantities
+        # only related to the choice of radial basis, namely the
+        # projections of the spherical Bessel functions j_l(kr) onto the
+        # radial basis and (if desired) the center contributions
         self.radial_proj = RadialBasis(self.max_radial, self.max_angular,
                                        self.cutoff_radius, self.smearing,
-                                       self.radial_basis)
-
+                                       self.radial_basis,
+                                       self.subtract_center_contribution,
+                                       density)
         self.radial_proj.precompute_radial_projections(np.pi/self.smearing)
 
     def transform(self, frames, species_dict, show_progress=False):
@@ -305,7 +327,7 @@ class DensityProjectionCalculator():
         for icenter in range(num_atoms):
             # Loop over all atoms in the structure (including central atom)
 
-            if self.subtract_self:
+            if self.subtract_center_contribution:
                 center_contrib = self.radial_projection.center_contributions
                 frame_features[icenter, icenter, :, 0] -= center_contrib
 

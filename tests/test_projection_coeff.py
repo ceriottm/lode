@@ -14,6 +14,7 @@ from pylode.lib.projection_coeffs import DensityProjectionCalculator
 
 def test_lode():
     # Test 1: Convergence of norm
+    # NOTE: Currently, this is only used to check that the code actually runs
     frames = []
     cell = np.eye(3) * 14
     distances = np.linspace(2, 3., 5)
@@ -25,8 +26,8 @@ def test_lode():
     species_dict = {'O': 0}
     sigma = 1.5
 
-    ns = [2, 4, 6, 8, 10]
-    ls = [1, 3, 5, 7, 9]
+    ns = [2, 4, 6]
+    ls = [1, 3, 5]
     norms = np.zeros((len(ns), len(ls)))
     for i, n in enumerate(ns):
         for j, l in enumerate(ls):
@@ -49,4 +50,3 @@ def test_lode():
     plt.legend()
     plt.xlabel('angular l')
     plt.ylabel('Norm of feature vector for one structure')
-    plt.savefig("norm.png")
