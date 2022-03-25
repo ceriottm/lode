@@ -303,6 +303,11 @@ class DensityProjectionCalculator():
         # Loop over center atom
         for icenter in range(num_atoms):
             # Loop over all atoms in the structure (including central atom)
+
+            if self.subtract_self:
+                center_contrib = self.radial_projection.center_contributions
+                frame_features[icenter, icenter, :, 0] -= center_contrib
+
             for ineigh in range(num_atoms):
                 i_chem = int(iterator_species[ineigh]) # index describing chemical species
 
@@ -342,12 +347,6 @@ class DensityProjectionCalculator():
                         frame_gradients[ineigh + icenter * num_atoms, 0, i_chem] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[0]
                         frame_gradients[ineigh + icenter * num_atoms, 1, i_chem] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[1]
                         frame_gradients[ineigh + icenter * num_atoms, 2, i_chem] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[2]
-
-        if self.subtract_self:
-            # Only for l = 0 and a = a_center
-            for icenter in range(num_atoms):
-                center_contrib = self.radial_projection.center_contributions
-                frame_features[icenter, icenter, :, 0] -= center_contrib
 
         if self.compute_gradients:
             return frame_features, frame_gradients
