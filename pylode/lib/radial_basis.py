@@ -164,7 +164,6 @@ class Radial_Basis():
             # Initialization of the arrays in which to store function values
             xx = np.linspace(0, rcut, Nradial)
             normalizationsq = np.array([rcut**(2*l + 3)/(2*l + 3) for l in range(lmax+1)])
-            projcoeffs = np.zeros((Nspline, lmax+1))
             self.orthonormalization_matrix = np.diag(np.sqrt(1./normalizationsq))
 
             # Evaluate the target function and generate spline approximation
