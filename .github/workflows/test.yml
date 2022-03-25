@@ -19,10 +19,9 @@ jobs:
     - name: Install package and dependencies
       run: python3 -m pip install .[progressbar,test] -U
     - name: Test library
-      run: |
-        pytest tests
+      run: pytest tests
     - name: Test examples
-        pytest --nbval-lax notebooks
+      run: pytest --nbval-lax notebooks
     # Upload plots generated from tests
     - name: Save output
       if: always() # Always try to upload data even if code fails somewhere
