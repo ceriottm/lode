@@ -9,7 +9,7 @@ import argparse
 import numpy as np
 from ase.io import read
 
-from pylode import Density_Projection_Calculator as LODE
+from pylode import DensityProjectionCalculator as LODE
 
 def lode_get_features(frames, show_progress=False, **hypers):
     """Calculate LODE feature array from an atomic dataset.
@@ -24,7 +24,7 @@ def lode_get_features(frames, show_progress=False, **hypers):
         Show progress bar
     hypers : kwargs
         Kwargs of hyperparameters.
-        See pylode.Density_Projection_Calculator for details.
+        See pylode.DensityProjectionCalculator for details.
 
     Returns
     -------
@@ -45,7 +45,7 @@ def lode_get_features(frames, show_progress=False, **hypers):
                          species_dict=species_dict,
                          show_progress=show_progress)
 
-    return calculator.get_features()
+    return calculator.features
 
 
 def main():
@@ -103,10 +103,10 @@ def main():
                         help="potential exponent: "
                         "p=0 uses Gaussian densities, "
                         "p=1 is LODE using 1/r (Coulomb) densities")
-    parser.add_argument('-c',
-                        dest='exclude_center',
+    parser.add_argument('-self',
+                        dest='subtract_self',
                         action='store_true',
-                        help="Exclude contribution from the central atom.")
+                        help="Subtract contribution from the central atom.")
     parser.add_argument('-g',
                         dest='compute_gradients',
                         action='store_true',
