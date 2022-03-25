@@ -9,6 +9,7 @@ angular channel l=0,1,2,...,lmax is supported.
 
 # Generic imports
 import numpy as np
+from scipy.special import gamma
 
 try:
     from tqdm import tqdm
@@ -26,7 +27,10 @@ class Density_Projection_Calculator():
     Compute the spherical expansion coefficients
     """
 
-    def __init__(self, radial_basis="monomial", **hypers):
+    def __init__(self,
+                 radial_basis="monomial",
+                 exclude_center=True,
+                 **hypers):
         """
         Initialize the calculator using the hyperparameters.
         All the needed splines that only depend on the hyperparameters
@@ -34,6 +38,10 @@ class Density_Projection_Calculator():
 
         Parameters
         ----------
+        radial_basis : str
+            The radial basis. Currently implemented are 'GTO' and 'monomial'
+        exclude_center : bool
+            Exclude contribution from the central atom.
         **hypers :
             Mostly the same as in librascal. The differences are that:
             1. max_radial is optional (only needed for comparison)
@@ -41,10 +49,6 @@ class Density_Projection_Calculator():
                 p=1 is LODE using 1/r (Coulomb) densities
                 p=0 uses Gaussian densities (only for comparison with rascal)
                 p=2,3,4,... not yet implemented (easy to add if desired).
-
-        radial_basis : str
-            The radial basis. Currently implemented are 'GTO' and 'monomial'
-
         """
         # Store the provided hyperparameters
         self.smearing = hypers['smearing']
@@ -54,6 +58,7 @@ class Density_Projection_Calculator():
         self.compute_gradients = hypers['compute_gradients']
         self.radial_basis = radial_basis.lower()
         self.max_radial = hypers['max_radial']
+        self.exclude_center = exclude_center
 
         # Prepare radial basis for specified exponent (currently, only defaults)
         if self.potential_exponent not in [0,1]:
@@ -61,7 +66,7 @@ class Density_Projection_Calculator():
         # LODE using Coulombic, i.e. 1/r, densities
         if self.radial_basis == "monomial":
             if self.max_radial != 1:
-                raise ValueError("1 is the only optimal basis for now")
+                raise ValueError("For monomial basis only max_radial=1 is allowed.")
             # Only use one radial basis r^l for each angular channel l,
             # leading to a total of (lmax+1)^2 features
             self.num_features_bare = (self.max_angular+1)**2
@@ -300,13 +305,13 @@ class Density_Projection_Calculator():
         # Step 3: Main loop:
         #   Iterate over all atoms to evaluate the projection coefficients
         ###
-        global_factor = 4 * np.pi / frame.get_volume()
+        global_factor = np.power(4 * np.pi, 1.5) / frame.get_volume()
         struc_factor = np.zeros((lmax+1)**2)
         struc_factor_grad = np.zeros((lmax+1)**2)
 
         # Loop over center atom
         for icenter in range(num_atoms):
-            # Loop over all atoms in the structure (including center atom)
+            # Loop over all atoms in the structure (including central atom)
             for ineigh in range(num_atoms):
                 i_chem = int(iterator_species[ineigh]) # index describing chemical species
 
@@ -328,9 +333,8 @@ class Density_Projection_Calculator():
                     # Update features
                     # print('Current features =\n', np.round(frame_features[icenter, i_chem].T, 8))
                     # print('Additional term =\n', np.round(global_factor * struc_factor * k_dep_factor[ik], 8).T)
-                    frame_features[icenter, i_chem] += 2* global_factor * struc_factor * k_dep_factor[ik]
+                    frame_features[icenter, i_chem] += 2 * global_factor * struc_factor * k_dep_factor[ik]
                     # print('New features =\n', np.round(frame_features[icenter, i_chem].T, 8))
-
 
                     # Update gradients
                     if self.compute_gradients:
@@ -346,11 +350,32 @@ class Density_Projection_Calculator():
                         frame_gradients[ineigh + icenter * num_atoms, 1, i_chem] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[1]
                         frame_gradients[ineigh + icenter * num_atoms, 2, i_chem] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[2]
 
+        if self.exclude_center:
+            # Only for l = 0 and a = a_center
+            for icenter in range(num_atoms):
+                center_coeff = self._get_center_coeffs()
+                frame_features[icenter, icenter, :, 0] -= center_coeff
 
-        if not self.compute_gradients:
-            return frame_features
-        else:
+        if self.compute_gradients:
             return frame_features, frame_gradients
+        else:
+            return frame_features
+
+    def _get_center_coeffs(self):
+        """Calculate the coefficients for subtracting the center contribution."""
+
+        sigma_radial = np.ones(self.max_radial, dtype=float)
+        sigma_radial *= self.cutoff_radius / self.max_radial
+
+        sigmatempsq = 1 / (1 / self.smearing**2 + 1 / sigma_radial**2)
+        neff = (3 + np.arange(self.max_radial)) / 2
+
+        normalization = 1 / np.sqrt(2 * np.pi * self.smearing**2)**3
+
+        center_coeffs = 2 * np.pi * normalization
+        center_coeffs = (2 * sigmatempsq)**neff * gamma(neff)
+
+        return center_coeffs
 
     def get_representation_info(self):
         return self.representation_info
