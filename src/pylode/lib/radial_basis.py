@@ -123,7 +123,7 @@ class RadialBasis():
 
         # Start main part: Store all the desired values for the specified
         # radial basis.
-        if self.radial_basis == 'gto':
+        if self.radial_basis in ['gto', 'gto_primitive']:
             # Generate length scales sigma_n for R_n(x)
             sigma = np.ones(nmax, dtype=float)
             for i in range(1, nmax):
@@ -146,6 +146,11 @@ class RadialBasis():
                 1. / eigvals)) @ eigvecs.T
             R_n_ortho = transformation @ R_n
             self.orthonormalization_matrix = transformation
+
+            # For testing purposes, allow usage of nonprimitive
+            # radial basis.
+            if self.radial_basis == 'gto_primitive':
+                R_n_ortho = R_n
 
             # Start evaluation of spherical Bessel functions
             for l in range(lmax + 1):

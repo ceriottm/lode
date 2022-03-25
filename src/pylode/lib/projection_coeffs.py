@@ -113,7 +113,7 @@ class DensityProjectionCalculator():
         if self.potential_exponent not in [0, 1]:
             raise ValueError("Potential exponent has to be one of 0 or 1!")
 
-        if self.radial_basis not in ["monomial", "gto"]:
+        if self.radial_basis not in ["monomial", "gto", "gto_primitive"]:
             raise ValueError(f"{self.radial_basis} is not an implemented"
                               " basis. Try 'monomial' or 'GTO'.")
 
