@@ -8,6 +8,7 @@ jobs:
       matrix:
         python: ['3.6', '3.7', '3.8', '3.9', '3.10']
         platform: [ubuntu-latest, macos-latest, windows-latest]
+        testcase: ['tests', '--nbval-lax notebooks']
     runs-on: ${{ matrix.platform }}
     steps:
     - name: Checkout
@@ -18,10 +19,8 @@ jobs:
         python-version: ${{ matrix.python }}
     - name: Install package and dependencies
       run: python3 -m pip install .[progressbar,test] -U
-    - name: Test library
-      run: pytest tests
-    - name: Test examples
-      run: pytest --nbval-lax notebooks
+    - name: Test ${{ matrix.testcase }}
+      run: pytest ${{ matrix.testcase }}
     # Upload plots generated from tests
     - name: Save output
       if: always() # Always try to upload data even if code fails somewhere
