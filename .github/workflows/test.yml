@@ -17,9 +17,11 @@ jobs:
       with:
         python-version: ${{ matrix.python }}
     - name: Install package and dependencies
-      run: python3 -m pip install . pytest -U
+      run: python3 -m pip install -e .[progressbar,test] -U
     - name: Test
-      run: pytest tests
+      run: |
+        pytest tests
+        pytest --nbval-lax notebooks/examples.ipynb
     # Upload plots generated from tests
     - name: Save output
       if: always() # Always try to upload data even if code fails somewhere
