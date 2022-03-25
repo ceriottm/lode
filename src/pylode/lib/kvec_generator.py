@@ -123,24 +123,3 @@ class KvectorGenerator():
 
         self.kvectors = np.array(kvecs)
         self.kvector_norms = np.array(knorms)
-
-
-def run_example_kvecgen():
-    # The smearing of the target density determines the cutoff in
-    # reciprocal space. pi/smearing was shown to yield good LODE convergence.
-    smearing_realspace = 1.5
-    kspace_cutoff = np.pi / smearing_realspace
-
-    # Define cell
-    L = 15.6
-    cell = np.eye(3) * L
-
-    # Generate k vectors
-    kvecgen = KvectorGenerator(cell, kspace_cutoff, need_origin=False)
-    print('Number of k-vectors = ', kvecgen.get_kvector_number())
-    print('Shape of k-vectors array = ', kvecgen.get_kvectors().shape)
-    print('Shape of array for norms = ', kvecgen.get_kvector_norms().shape)
-
-
-if __name__ == '__main__':
-    run_example_kvecgen()

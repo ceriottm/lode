@@ -184,9 +184,6 @@ class DensityProjectionCalculator():
                 self.representation_info[index, 2] = atom.number
                 index += 1
 
-            #TODO: fill with logic
-            self.gradients_info = np.zeros([len(self.feature_gradients),5])
-
             results = self._transform_single_frame(frame, _species_dict)
 
             # Returned values are only the features
@@ -199,6 +196,10 @@ class DensityProjectionCalculator():
 
             current_index += number_of_atoms
             gradient_index += number_of_atoms**2
+
+        if self.compute_gradients:
+            #TODO: fill with logic
+            self.gradients_info = np.zeros([len(self.feature_gradients),5])
 
     def _transform_single_frame(self, frame, species_dict):
         """
@@ -352,108 +353,3 @@ class DensityProjectionCalculator():
             return frame_features, frame_gradients
         else:
             return frame_features
-
-
-def run_example():
-    from ase import Atoms
-    from ase.io import read, write
-    import time
-
-    # frames = []
-    # cell = np.eye(3) *12
-    # distances = np.linspace(1.5, 3.5, 20)
-    # for d in distances:
-    #     # positions = [[0,0,0],[0,0,d],[0,d,0],[0,d,d],[d,d,d],[d,0,d],[d,0,0],[d,d,0]]
-    #     # frame = Atoms('O8', positions=positions, cell=cell, pbc=True)
-
-    #     positions2 = [[0,0,0],[0,0,d],[0,d,0],[0,d,d],[d,d,d]]
-    #     frame = Atoms('BaTiO3', positions=positions2, cell=cell, pbc=True)
-    #     frames.append(frame)
-
-    # write('BaTiO3_toy_structures.xyz', frames)
-
-    frames = read('BaTiO3_toy_structures.xyz', ':')
-
-    # Define hyperparameters
-    hypers = {
-        'smearing':2.0,
-        'max_angular':6,
-        'cutoff_radius':3.5,
-        'potential_exponent':1,
-        'compute_gradients':True
-        }
-
-    species_dict = {'O':0, 'Ti':1, 'Ba':2}
-
-    tstart = time.time()
-    calculator = DensityProjectionCalculator(**hypers)
-    calculator.transform(frames, species_dict)
-    features = calculator.get_features()
-    gradients = calculator.get_feature_gradients()
-
-    features_ref = np.load('features_ref.npy')
-    gradients_ref = np.load('gradients_ref.npy')
-
-    err1 = np.linalg.norm(features-features_ref)
-    err2 = np.linalg.norm(gradients-gradients_ref)
-    print('Errors = ', err1, err2)
-    print('Shapes = ', features.shape, gradients.shape)
-    print(features[:5,0,0,-5:])
-    tend = time.time()
-    dt = tend - tstart
-    print(f'Required time for {len(frames)} frames = {dt}s')
-
-
-def run_example_gaussian():
-    from ase import Atoms
-    from ase.io import read, write
-    import time
-
-    frames = []
-    cell = np.eye(3) *12
-    distances = np.linspace(1.5, 2., 5)
-    # for d in distances:
-    #     positions2 = [[0,0,0],[0,0,d],[0,d,0],[0,d,d],[d,d,d]]
-    #     frame = Atoms('O5', positions=positions2, cell=cell, pbc=True)
-    #     frames.append(frame)
-    # write('oxygen_toy_structures.xyz', frames)
-
-    for d in distances:
-        positions2 = [[1,1,1],[1,1,d+1]]
-        frame = Atoms('O2', positions=positions2, cell=cell, pbc=True)
-        frames.append(frame)
-
-
-    # frames = read('oxygen_toy_structures.xyz', ':')
-
-    # Define hyperparameters
-    hypers = {
-        'smearing':1.5,
-        'max_angular':5,
-        'max_radial':8,
-        'cutoff_radius':5.,
-        'potential_exponent':0,
-        'compute_gradients':False
-        }
-
-    species_dict = {'O':0}
-
-    tstart = time.time()
-    calculator = Density_Projection_Calculator(**hypers)
-    calculator.transform(frames, species_dict)
-    features = calculator.get_features()
-    # gradients = calculator.get_feature_gradients()
-
-    # np.save('features_oxygen.npy', features)
-    # np.save('gradients_oxygen.npy', gradients)
-
-    # print('Shapes = ', features.shape)
-    # print(np.round(features[-1,0,:].T,4))
-    # tend = time.time()
-    # dt = tend - tstart
-    # print(f'Required time for {len(frames)} frames = {dt}s')
-
-
-if __name__ == '__main__':
-    # run_example()
-    run_example_gaussian()
