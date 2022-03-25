@@ -38,7 +38,7 @@ class KvectorGenerator():
         the k vectors
     kvector_norms : numpy.ndarray
         norms of the k vctors
-    num_kvecs : int
+    kvector_number : int
         Number of k vectors
     """
     def __init__(self, cell, rcut, is_reciprocal_cell=False,
@@ -102,4 +102,4 @@ class KvectorGenerator():
 
         self.kvectors = np.array(kvecs)
         self.kvector_norms = np.array(knorms)
-        self.num_kvecs = len(self.kvectors)
+        self.kvector_number = len(self.kvectors)

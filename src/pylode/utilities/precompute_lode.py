@@ -90,9 +90,9 @@ def main():
                         default="monomial",
                         const="monomial",
                         nargs='?',
-                        choices=["monomial", "GTO"],
-                        help="The radial basis. Currently "
-                        "implemented are 'GTO' and 'monomial'.")
+                        choices=["monomial", "GTO", "GTO_primitive"],
+                        help="The radial basis. Currently implemented "
+                        "are 'GTO_primitive', 'GTO' and 'monomial'.")
     parser.add_argument("-e",
                         dest="potential_exponent",
                         type=int,

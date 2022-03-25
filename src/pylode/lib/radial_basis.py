@@ -54,7 +54,8 @@ class RadialBasis():
         Smearing of the Gaussain (Å). Note that computational cost scales
         cubically with 1/smearing.
     radial_basis : str
-        The radial basis. Currently implemented are 'GTO' and 'monomial'.
+        The radial basis. Currently implemented are
+        'GTO_primitive', 'GTO', 'monomial'.
         For monomial: Only use one radial basis r^l for each angular 
         channel l leading to a total of (lmax+1)^2 features.
     exclude_center : bool
@@ -91,6 +92,10 @@ class RadialBasis():
         # Store the optional parameters related to the self contribution
         self.subtract_self = subtract_self
         self.density_function = density_function
+
+        if self.radial_basis not in ["monomial", "gto", "gto_primitive"]:
+            raise ValueError(f"{self.radial_basis} is not an implemented basis"
+                              ". Try 'monomial', 'GTO' or GTO_primitive.")
 
     def precompute_radial_projections(self, kmax, Nradial=1000, Nspline=200):
         """

@@ -41,7 +41,8 @@ class DensityProjectionCalculator():
         Smearing of the Gaussain (Å). Note that computational cost scales
         cubically with 1/smearing.
     radial_basis : str
-        The radial basis. Currently implemented are 'GTO' and 'monomial'.
+        The radial basis. Currently implemented are
+        'GTO_primitive', 'GTO', 'monomial'.
         For monomial: Only use one radial basis r^l for each angular
         channel l leading to a total of (lmax+1)^2 features.
     compute_gradients : bool
@@ -114,8 +115,8 @@ class DensityProjectionCalculator():
             raise ValueError("Potential exponent has to be one of 0 or 1!")
 
         if self.radial_basis not in ["monomial", "gto", "gto_primitive"]:
-            raise ValueError(f"{self.radial_basis} is not an implemented"
-                              " basis. Try 'monomial' or 'GTO'.")
+            raise ValueError(f"{self.radial_basis} is not an implemented basis"
+                              ". Try 'monomial', 'GTO' or GTO_primitive.")
 
         if self.radial_basis == "monomial" and self.max_radial != 1:
             raise ValueError("For monomial basis only `max_radial=1` "
@@ -132,7 +133,7 @@ class DensityProjectionCalculator():
                 prefac = 1./np.power(2*np.pi*self.smearing**2,1.5)
                 density = lambda x: prefac * np.exp(-0.5*x**2/self.smearing)
             elif potential_exponent == 1:
-                density = lambda x: erf(x/self.smearing)/x # TODO need to take care of singularity
+                density = lambda x: np.nan_to_num(erf(x/self.smearing)/x)
         else:
             density = None
 
@@ -268,7 +269,7 @@ class DensityProjectionCalculator():
         kvecgen.compute()
         kvectors = kvecgen.kvectors
         kvecnorms = kvecgen.kvector_norms
-        num_kvecs = kvecgen.num_kvecs
+        num_kvecs = kvecgen.kvector_number
 
         # Fourier transform of density times Fourier transform of potential
         # This is the line where using Gaussian or 1/r^p for different p are
