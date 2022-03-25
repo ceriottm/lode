@@ -17,7 +17,7 @@ jobs:
       with:
         python-version: ${{ matrix.python }}
     - name: Install package and dependencies
-      run: python3 -m pip install -e .[progressbar,test] -U
+      run: python3 -m pip install .[progressbar,test] -U
     - name: Test library
       run: |
         pytest tests
