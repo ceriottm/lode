@@ -13,7 +13,7 @@ are essentially identical.
 
 import numpy as np
 
-class Kvector_Generator():
+class KvectorGenerator():
     def __init__(self, cell, rcut, is_reciprocal_cell = False,
                  need_origin = False):
         """
@@ -136,7 +136,7 @@ def run_example_kvecgen():
     cell = np.eye(3) * L
 
     # Generate k vectors
-    kvecgen = Kvector_Generator(cell, kspace_cutoff, need_origin=False)
+    kvecgen = KvectorGenerator(cell, kspace_cutoff, need_origin=False)
     print('Number of k-vectors = ', kvecgen.get_kvector_number())
     print('Shape of k-vectors array = ', kvecgen.get_kvectors().shape)
     print('Shape of array for norms = ', kvecgen.get_kvector_norms().shape)
