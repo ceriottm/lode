@@ -34,12 +34,13 @@ class TestKvecgen:
         for ik, kcut in enumerate(self.cutoffs):
             # Generate k vectors
             kvecgen = KvectorGenerator(cell, kcut, is_reciprocal_cell=True)
-            kvectors = kvecgen.get_kvectors()
-            kvecnorms = kvecgen.get_kvector_norms()
+            kvecgen.compute()
+            kvectors = kvecgen.kvectors
+            kvecnorms = kvecgen.kvector_norms
 
             # Check whether number of obtained vectors agrees with exact result
-            assert kvecgen.get_kvector_number() == len(kvectors)
-            assert len(kvectors) == self.num_vectors_correct[ik]
+            assert len(kvectors) == kvecgen.num_kvecs
+            assert kvecgen.num_kvecs == self.num_vectors_correct[ik]
 
             # Check that the obtained normes are indeed the norms of the
             # corresponding k-vectors and that they lie in the cutoff ball
@@ -52,12 +53,13 @@ class TestKvecgen:
         for ik, kcut in enumerate(self.cutoffs):
             # Generate k vectors
             kvecgen = KvectorGenerator(cell, kcut, is_reciprocal_cell=True)
-            kvectors = kvecgen.get_kvectors()
-            kvecnorms = kvecgen.get_kvector_norms()
+            kvecgen.compute()
+            kvectors = kvecgen.kvectors
+            kvecnorms = kvecgen.kvector_norms
 
             # Check whether number of obtained vectors agrees with exact result
-            assert kvecgen.get_kvector_number() == len(kvectors)
-            assert len(kvectors) == self.num_vectors_correct[ik]
+            assert len(kvectors) == kvecgen.num_kvecs
+            assert kvecgen.num_kvecs == self.num_vectors_correct[ik]
 
             # Check that the obtained normes are indeed the norms of the
             # corresponding k-vectors and that they lie in the cutoff ball
@@ -75,12 +77,13 @@ class TestKvecgen:
         for ik, kcut in enumerate(self.cutoffs):
             # Generate k vectors
             kvecgen = KvectorGenerator(cell, kcut, is_reciprocal_cell=True)
-            kvectors = kvecgen.get_kvectors()
-            kvecnorms = kvecgen.get_kvector_norms()
+            kvecgen.comput()
+            kvectors = kvecgen.kvectors()
+            kvecnorms = kvecgen.kvector_norms()
 
             # Check whether number of obtained vectors agrees with exact result
-            assert kvecgen.get_kvector_number() == len(kvectors)
-            assert len(kvectors) == self.num_vectors_correct[ik]
+            assert len(kvectors) == kvecgen.num_kvecs
+            assert kvecgen.num_kvecs == self.num_vectors_correct[ik]
 
             # Check that the obtained normes are indeed the norms of the
             # corresponding k-vectors and that they lie in the cutoff ball

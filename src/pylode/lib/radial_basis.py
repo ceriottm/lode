@@ -30,15 +30,49 @@ def innerprod(xx, yy1, yy2):
 
 class RadialBasis():
     """
-    Class for precomputing and storing all results related to the choice
-    of the radial basis. These include:
-    - The splined projection of the spherical Bessel functions onto
+    Class for precomputing and storing all results related to the radial basis.
+    
+    These include:
+    * The splined projection of the spherical Bessel functions onto
       radial basis used in the k-space implementation of LODE
-    - The exact values of the center contributions
-    - The transformation matrix between the orthogonalized and primitive
+    * The exact values of the center contributions
+    * The transformation matrix between the orthogonalized and primitive
       radial basis (if applicable).
-    """
 
+    All the needed splines that only depend on the hyperparameters
+    are prepared as well by storing the values.
+
+    Parameters
+    ----------
+    max_radial : int
+        Number of radial functions
+    max_angular : int
+        Number of angular functions
+    cutoff_radius : float
+        Environment cutoff (Å)
+    smearing : float
+        Smearing of the Gaussain (Å). Note that computational cost scales
+        cubically with 1/smearing.
+    radial_basis : str
+        The radial basis. Currently implemented are 'GTO' and 'monomial'.
+        For monomial: Only use one radial basis r^l for each angular 
+        channel l leading to a total of (lmax+1)^2 features.
+    exclude_center : bool
+        Exclude contribution from the central atom.
+    density_function : callable
+        TODO
+
+    Attributes
+    ----------
+    radial_spline : scipy.interpolate.CubicSpline instance
+        Spline function that takes in k-vectors (one or many) and returns
+        the projections of the spherical Bessel function j_l(kr) onto the
+        specified basis.
+    center_contributions : array
+        center_contributions
+    orthonormalization_matrix : array
+        orthonormalization_matrix
+    """
     def __init__(self,
                  max_radial,
                  max_angular,
@@ -47,43 +81,6 @@ class RadialBasis():
                  radial_basis,
                  subtract_self=False,
                  density_function=None):
-        """
-        Initialize the radial basis class using the hyperparameters.
-
-        All the needed splines that only depend on the hyperparameters
-        are prepared as well by storing the values.
-
-       Parameters
-        ----------
-        max_radial : int
-            Number of radial functions
-        max_angular : int
-            Number of angular functions
-        cutoff_radius : float
-            Environment cutoff (Å)
-        smearing : float
-            Smearing of the Gaussain (Å). Note that computational cost scales
-            cubically with 1/smearing.
-        radial_basis : str
-            The radial basis. Currently implemented are 'GTO' and 'monomial'.
-            For monomial: Only use one radial basis r^l for each angular 
-            channel l leading to a total of (lmax+1)^2 features.
-        exclude_center : bool
-            Exclude contribution from the central atom.
-        density_function : callable
-            TODO
-
-        Attributes
-        ----------
-        radial_spline : scipy.interpolate.CubicSpline instance
-            Spline function that takes in k-vectors (one or many) and returns
-            the projections of the spherical Bessel function j_l(kr) onto the
-            specified basis.
-        center_contributions : array
-            center_contributions
-        orthonormalization_matrix : array
-            orthonormalization_matrix
-        """
         # Store the provided hyperparameters
         self.smearing = smearing
         self.max_radial = max_radial

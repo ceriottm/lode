@@ -21,6 +21,74 @@ from .spherical_harmonics import evaluate_spherical_harmonics
 
 
 class DensityProjectionCalculator():
+    """
+    Compute the spherical expansion coefficients.
+
+    Initialize the calculator using the hyperparameters.
+    All the needed splines that only depend on the hyperparameters
+    are prepared as well by storing the values.
+
+    Parameters
+    ----------
+    max_radial : int
+        Number of radial functions
+    max_angular : int
+        Number of angular functions
+    cutoff_radius : float
+        Environment cutoff (Å)
+    smearing : float
+        Smearing of the Gaussain (Å). Note that computational cost scales
+        cubically with 1/smearing.
+    radial_basis : str
+        The radial basis. Currently implemented are 'GTO' and 'monomial'.
+        For monomial: Only use one radial basis r^l for each angular
+        channel l leading to a total of (lmax+1)^2 features.
+    compute_gradients : bool
+        Compute gradients
+    potential_exponent : int
+        potential exponent: p=0 uses Gaussian densities,
+        p=1 is LODE using 1/r (Coulomb) densities"
+    subtract_self : bool
+        Subtract contribution from the central atom.
+
+    Attributes
+    ----------
+    features : array
+        the computed projection coefficients in the format:
+        The projection coefficients as an array of dimension:
+            num_environ x num_chem_species x num_radial x num_lm_coefficients,
+        where:
+            num_environ = total number of atoms in the system summed over
+                            all frames
+            num_chem_species = number of chemical species
+            num_radial = nmax
+            num_lm_coefficients = (lmax+1)^2
+    feature_gradients : array
+        the gradients of the projection coefficients
+        The returned array has dimensions:
+        num_environm_squared x 3 x num_chemical_species x num_radial x num_lm_coefficients,
+
+        The factor of 3 corresponds to x,y,z-components.
+        Otherwise, the specification is almost identical to get_features, except
+        that the first axis specifying the atomic environment now runs over
+        all pairs (i,j).
+        Example: For a structure containing 3 atoms labeled as (0,1,2),
+        the gradients are stored as
+        gradients[0] = dV_0/dr_0
+        gradients[1] = dV_0/dr_1
+        gradients[2] = dV_0/dr_2
+        gradients[3] = dV_1/dr_0
+        gradients[4] = dV_1/dr_1
+        ...
+        gradients[8] = dV_2/dr_2
+
+        If multiple frames are present, all these coefficients are
+        concatenated along the 0-th axis, as usual e.g. for SOAP vectors
+        in librascal.
+
+    representation_info : array
+        Stuff for interacting to interact with atomistic-ml-storage. 
+    """
     def __init__(self,
                  max_radial,
                  max_angular,
@@ -30,74 +98,6 @@ class DensityProjectionCalculator():
                  compute_gradients=False,
                  potential_exponent=1,
                  subtract_self=False):
-        """
-        Compute the spherical expansion coefficients.
-
-        Initialize the calculator using the hyperparameters.
-        All the needed splines that only depend on the hyperparameters
-        are prepared as well by storing the values.
-
-        Parameters
-        ----------
-        max_radial : int
-            Number of radial functions
-        max_angular : int
-            Number of angular functions
-        cutoff_radius : float
-            Environment cutoff (Å)
-        smearing : float
-            Smearing of the Gaussain (Å). Note that computational cost scales
-            cubically with 1/smearing.
-        radial_basis : str
-            The radial basis. Currently implemented are 'GTO' and 'monomial'.
-            For monomial: Only use one radial basis r^l for each angular
-            channel l leading to a total of (lmax+1)^2 features.
-        compute_gradients : bool
-            Compute gradients
-        potential_exponent : int
-            potential exponent: p=0 uses Gaussian densities,
-            p=1 is LODE using 1/r (Coulomb) densities"
-        subtract_self : bool
-            Subtract contribution from the central atom.
-
-        Attributes
-        ----------
-        features : array
-            the computed projection coefficients in the format:
-            The projection coefficients as an array of dimension:
-                num_environ x num_chem_species x num_radial x num_lm_coefficients,
-            where:
-                num_environ = total number of atoms in the system summed over
-                                all frames
-                num_chem_species = number of chemical species
-                num_radial = nmax
-                num_lm_coefficients = (lmax+1)^2
-        feature_gradients : array
-            the gradients of the projection coefficients
-            The returned array has dimensions:
-            num_environm_squared x 3 x num_chemical_species x num_radial x num_lm_coefficients,
-
-            The factor of 3 corresponds to x,y,z-components.
-            Otherwise, the specification is almost identical to get_features, except
-            that the first axis specifying the atomic environment now runs over
-            all pairs (i,j).
-            Example: For a structure containing 3 atoms labeled as (0,1,2),
-            the gradients are stored as
-            gradients[0] = dV_0/dr_0
-            gradients[1] = dV_0/dr_1
-            gradients[2] = dV_0/dr_2
-            gradients[3] = dV_1/dr_0
-            gradients[4] = dV_1/dr_1
-            ...
-            gradients[8] = dV_2/dr_2
-
-            If multiple frames are present, all these coefficients are
-            concatenated along the 0-th axis, as usual e.g. for SOAP vectors
-            in librascal.
-
-        representation_info : array
-            Stuff for interacting to interact with atomistic-ml-storage. 
-        """
         self.max_radial = max_radial
         self.max_angular = max_angular
         self.cutoff_radius = cutoff_radius
@@ -128,8 +128,8 @@ class DensityProjectionCalculator():
     def transform(self, frames, species_dict, show_progress=False):
         """
         Computes the features and (if compute_gradients == True) gradients
-        for all the provided frames. The features and gradients can be
-        obtained using get_features() and get_feature_gradients().
+        for all the provided frames. The features and gradients are stored in
+        features and feature_gradients attribute.
 
         Parameters
         ----------
@@ -243,9 +243,10 @@ class DensityProjectionCalculator():
         ###
         # Get k-vectors (also called reciprocal space or Fourier vectors)
         kvecgen = KvectorGenerator(frame.get_cell(), np.pi / self.smearing)
-        kvectors = kvecgen.get_kvectors()
-        kvecnorms = kvecgen.get_kvector_norms()
-        num_kvecs = kvecgen.get_kvector_number()
+        kvecgen.compute()
+        kvectors = kvecgen.kvectors
+        kvecnorms = kvecgen.kvector_norms
+        num_kvecs = kvecgen.num_kvecs
 
         # Fourier transform of density times Fourier transform of potential
         # This is the line where using Gaussian or 1/r^p for different p are
