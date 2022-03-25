@@ -118,6 +118,8 @@ class RadialBasis():
         lmax = self.max_angular
         rcut = self.cutoff_radius
 
+        self.center_contributions = np.zeros(nmax)
+
         # Array of k-vectors for numerical integration used
         # for all radial bases
         kk = np.linspace(0, kmax, Nspline)
