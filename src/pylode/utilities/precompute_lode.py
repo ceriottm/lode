@@ -104,7 +104,7 @@ def main():
                         "p=0 uses Gaussian densities, "
                         "p=1 is LODE using 1/r (Coulomb) densities")
     parser.add_argument('-self',
-                        dest='subtract_self',
+                        dest='subtract_center_contribution',
                         action='store_true',
                         help="Subtract contribution from the central atom.")
     parser.add_argument('-g',
@@ -120,9 +120,8 @@ def main():
     args = parser.parse_args()
     frames = read(args.__dict__.pop("input_file"),
                   index=args.__dict__.pop("index"))
-    np.save(args.outfile, lode_get_features(frames,
-                                            show_progress=True,
-                                            **args.__dict__))
+    np.save(args.__dict__.pop("outfile"),
+            lode_get_features(frames, show_progress=True, **args.__dict__))
 
 if __name__=="__main__":
     main()
