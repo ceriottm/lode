@@ -84,7 +84,7 @@ class TestRadialProjection:
                                    rcut,
                                    smearing,
                                    radial_basis="gto_primitive")
-        radial_basis.precompute_radial_projections(kmax, Nspline=200, Nradial=1000)
+        radial_basis.compute(kmax, Nspline=200, Nradial=1000)
         coeffs = radial_basis.radial_spline(kk)
 
         # Compare to analytical results

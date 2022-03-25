@@ -97,7 +97,7 @@ class RadialBasis():
             raise ValueError(f"{self.radial_basis} is not an implemented basis"
                               ". Try 'monomial', 'GTO' or GTO_primitive.")
 
-    def precompute_radial_projections(self, kmax, Nradial=1000, Nspline=200):
+    def compute(self, kmax, Nradial=1000, Nspline=200):
         """
         Obtain the projection coefficients of the spherical Bessel functions
         onto the chosen basis.

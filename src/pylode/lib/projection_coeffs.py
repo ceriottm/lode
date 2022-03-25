@@ -146,7 +146,7 @@ class DensityProjectionCalculator():
                                        self.radial_basis,
                                        self.subtract_center_contribution,
                                        density)
-        self.radial_proj.precompute_radial_projections(np.pi/self.smearing)
+        self.radial_proj.compute(np.pi/self.smearing)
 
     def transform(self, frames, species_dict, show_progress=False):
         """
@@ -329,7 +329,7 @@ class DensityProjectionCalculator():
             # Loop over all atoms in the structure (including central atom)
 
             if self.subtract_center_contribution:
-                center_contrib = self.radial_projection.center_contributions
+                center_contrib = self.radial_proj.center_contributions
                 frame_features[icenter, icenter, :, 0] -= center_contrib
 
             for ineigh in range(num_atoms):
