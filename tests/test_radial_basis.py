@@ -7,7 +7,7 @@ Created on Wed Jan 19 13:32:41 2022
 
 import numpy as np
 from scipy.special import gamma, hyp1f1
-
+from scipy.integrate import quad
 from pylode.lib.radial_basis import innerprod, RadialBasis
 
 
@@ -102,3 +102,44 @@ class TestRadialProjection:
 
         error = coeffs - coeffs_exact
         assert np.linalg.norm(error) / error.size < 1e-6
+
+    
+    def test_center_contribution_gto_gaussian(self):
+        # Define hyperparameters
+        nmax = 6
+        lmax = 2
+        rcut = 5.
+        sigma = 1.0
+        radial_basis = 'gto_primitive'
+
+        # Define density function and compute center contributions
+        prefac = 1./np.power(2*np.pi*sigma**2,1.5)
+        density = lambda x: prefac * np.exp(-0.5*x**2/sigma)
+        radproj = RadialBasis(nmax, lmax, rcut, sigma,
+                              radial_basis, True, density)
+        radproj.compute(np.pi/sigma, Nradial=10000)
+        center_contr = radproj.center_contributions 
+
+        # Analytical evaluation of center contributions
+        normalization = 1./np.sqrt(2*np.pi*sigma**2)**3
+        sigma_radial = np.ones(nmax, dtype=float)
+        for i in range(1,nmax):
+            sigma_radial[i] = np.sqrt(i)
+        sigma_radial *= rcut/nmax
+
+        center_contr_analytical = np.zeros((nmax))
+        for n in range(nmax):
+            sigmatempsq = 1./(1./sigma**2 + 1./sigma_radial[n]**2)
+            neff = 0.5 * (3 + n)
+            center_contr_analytical[n] = normalization * 2*np.pi * (2*sigmatempsq)**neff * gamma(neff) / np.sqrt(4 * np.pi)
+
+        # Numerical evaluation of center contributions
+        center_contr_numerical = np.zeros((nmax))
+        for n in range(nmax):
+            Rn = lambda r: r**n * np.exp(-0.5*r**2/sigma_radial[n]**2)
+            integrand = lambda r: np.sqrt(4 * np.pi) * Rn(r) * density(r) * r**2
+            center_contr_numerical[n] = quad(integrand, 0., np.inf)[0]
+
+        # Check that the three methods agree with one another
+        assert np.linalg.norm((center_contr - center_contr_analytical)/center_contr_analytical) < 1e-9
+        assert np.linalg.norm((center_contr_numerical - center_contr_analytical)/center_contr_analytical) < 1e-10
