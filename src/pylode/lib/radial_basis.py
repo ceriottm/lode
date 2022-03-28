@@ -166,9 +166,10 @@ class RadialBasis():
 
             # Compute self contribution to the l=0 components
             if self.subtract_self:
+                prefac = np.sqrt(4 * np.pi)
                 density = self.density_function(xx)
                 for n in range(nmax):
-                    self.center_contributions[n] = innerprod(
+                    self.center_contributions[n] = prefac * innerprod(
                         xx, R_n_ortho[n], density)
 
         elif self.radial_basis == 'monomial':
