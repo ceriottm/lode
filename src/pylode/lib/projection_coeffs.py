@@ -133,7 +133,9 @@ class DensityProjectionCalculator():
                 prefac = 1./np.power(2*np.pi*self.smearing**2,1.5)
                 density = lambda x: prefac * np.exp(-0.5*x**2/self.smearing)
             elif potential_exponent == 1:
-                density = lambda x: np.nan_to_num(erf(x/self.smearing)/x)
+                lim = np.sqrt(2./np.pi) / self.smearing
+                density = lambda x: np.nan_to_num(erf(x/self.smearing/np.sqrt(2))/x,
+                                                  nan=lim, posinf=lim)
         else:
             density = None
 
