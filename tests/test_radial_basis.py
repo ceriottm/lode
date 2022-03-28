@@ -131,7 +131,9 @@ class TestRadialProjection:
         for n in range(nmax):
             sigmatempsq = 1./(1./sigma**2 + 1./sigma_radial[n]**2)
             neff = 0.5 * (3 + n)
-            center_contr_analytical[n] = normalization * 2*np.pi * (2*sigmatempsq)**neff * gamma(neff) / np.sqrt(4 * np.pi)
+            center_contr_analytical[n] = (2*sigmatempsq)**neff * gamma(neff)
+        
+        center_contr_analytical *= normalization * 2 * np.pi / np.sqrt(4*np.pi)
 
         # Numerical evaluation of center contributions
         center_contr_numerical = np.zeros((nmax))
@@ -141,5 +143,7 @@ class TestRadialProjection:
             center_contr_numerical[n] = quad(integrand, 0., np.inf)[0]
 
         # Check that the three methods agree with one another
-        assert np.linalg.norm((center_contr - center_contr_analytical)/center_contr_analytical) < 1e-9
-        assert np.linalg.norm((center_contr_numerical - center_contr_analytical)/center_contr_analytical) < 1e-10
+        assert np.linalg.norm((center_contr - center_contr_analytical)
+                              /center_contr_analytical) < 1e-9
+        assert np.linalg.norm((center_contr_numerical - center_contr_analytical)
+                              /center_contr_analytical) < 1e-10
