@@ -19,7 +19,7 @@ jobs:
     - name: Install package and dependencies
       run: python3 -m pip install .[progressbar,test] -U
     - name: Test
-      run: pytest --nbval-lax tests notebooks
+      run: pytest --nbval-lax -v tests notebooks
     # Upload plots generated from tests
     - name: Save output
       if: always() # Always try to upload data even if code fails somewhere
