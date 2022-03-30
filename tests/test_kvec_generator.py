@@ -10,6 +10,7 @@ import pytest
 import scipy
 
 from pylode.lib.kvec_generator import KvectorGenerator
+from numpy.testing import assert_equal
 
 np.random.seed(12419)
 
@@ -55,5 +56,5 @@ class TestKvecgen:
 
             # Check that the obtained normes are indeed the norms of the
             # corresponding k-vectors and that they lie in the cutoff ball
-            assert (kvecnorms == np.linalg.norm(kvectors, axis=1)).all()
+            assert_equal(kvecnorms, np.linalg.norm(kvectors, axis=1))
             assert (kvecnorms < kcut).all()
