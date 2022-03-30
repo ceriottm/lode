@@ -157,6 +157,15 @@ class TestRadialProjection:
         V_lr = lambda x: erf(x/sigma/np.sqrt(2))/x
         density = lambda x: np.where(x>1e-5, V_lr(x), V_sr(x))
 
+        # Analytical evaluation of center contributions
+        center_contr_analytical = np.zeros((nmax))
+        for n in range(nmax):
+            prefac = 2**(2+n/2) * sigma_radial[n]**(n+3) / sigma
+            neff = 0.5 * (3 + n)
+            arg = -(sigma_radial[n] / sigma)**2
+            center_contr_analytical[n] = hyp2f1(0.5,neff,1.5,arg) * gamma(neff)
+            center_contr_analytical[n] *= prefac
+
         with np.errstate(divide='ignore', invalid='ignore'):
             radproj_lr = RadialBasis(nmax, lmax, rcut, sigma,
                                 radial_basis, True, density)
@@ -170,6 +179,8 @@ class TestRadialProjection:
                 integrand = lambda r: np.sqrt(4 * np.pi) * Rn(r) * density(r) * r**2
                 center_contr_numerical[n] = quad(integrand, 0., np.inf)[0]
 
+            # The three methods of computation should all agree 
             assert np.linalg.norm((center_contr_lr - center_contr_numerical)
                               /center_contr_numerical) < 2e-7
-        
+            assert np.linalg.norm((center_contr_numerical - center_contr_analytical)
+                                /center_contr_analytical) < 1e-14
