@@ -104,7 +104,7 @@ class TestRadialProjection:
         assert np.linalg.norm(error) / error.size < 1e-6
 
     
-    def test_center_contribution_gto_gaussian(self):
+    def test_center_contribution_gto(self):
         # Define hyperparameters
         nmax = 6
         lmax = 2
@@ -153,20 +153,23 @@ class TestRadialProjection:
         ###
         # Define density function and compute center contributions
         lim = np.sqrt(2./np.pi) / sigma
-        density = lambda x: np.nan_to_num(erf(x/sigma/np.sqrt(2))/x,
-                                          nan=lim, posinf=lim)
-        radproj_lr = RadialBasis(nmax, lmax, rcut, sigma,
-                              radial_basis, True, density)
-        radproj_lr.compute(np.pi/sigma, Nradial=10000)
-        center_contr_lr = radproj_lr.center_contributions
+        V_sr = lambda x: lim*(1. - (x/sigma/np.sqrt(2))**2/3)
+        V_lr = lambda x: erf(x/sigma/np.sqrt(2))/x
+        density = lambda x: np.where(x>1e-5, V_lr(x), V_sr(x))
 
-        # Numerical evaluation of center contributions
-        center_contr__lr_numerical = np.zeros((nmax))
-        for n in range(nmax):
-            Rn = lambda r: r**n * np.exp(-0.5*r**2/sigma_radial[n]**2)
-            integrand = lambda r: np.sqrt(4 * np.pi) * Rn(r) * density(r) * r**2
-            center_contr_numerical[n] = quad(integrand, 0., np.inf)[0]
+        with np.errstate(divide='ignore', invalid='ignore'):
+            radproj_lr = RadialBasis(nmax, lmax, rcut, sigma,
+                                radial_basis, True, density)
+            radproj_lr.compute(np.pi/sigma, Nradial=2000)
+            center_contr_lr = radproj_lr.center_contributions
 
-        assert np.linalg.norm((center_contr_lr - center_contr_numerical)
+            # Numerical evaluation of center contributions
+            center_contr__lr_numerical = np.zeros((nmax))
+            for n in range(nmax):
+                Rn = lambda r: r**n * np.exp(-0.5*r**2/sigma_radial[n]**2)
+                integrand = lambda r: np.sqrt(4 * np.pi) * Rn(r) * density(r) * r**2
+                center_contr_numerical[n] = quad(integrand, 0., np.inf)[0]
+
+            assert np.linalg.norm((center_contr_lr - center_contr_numerical)
                               /center_contr_numerical) < 2e-7
         
