@@ -6,6 +6,7 @@ Created on Wed Jan 19 13:32:41 2022
 """
 
 import numpy as np
+from numpy.testing import assert_allclose
 from scipy.special import gamma, hyp1f1, erf, hyp2f1
 from scipy.integrate import quad
 from pylode.lib.radial_basis import innerprod, RadialBasis
@@ -143,10 +144,8 @@ class TestRadialProjection:
             center_contr_numerical[n] = quad(integrand, 0., np.inf)[0]
 
         # Check that the three methods agree with one another
-        assert np.linalg.norm((center_contr - center_contr_analytical)
-                              /center_contr_analytical) < 1e-9
-        assert np.linalg.norm((center_contr_numerical - center_contr_analytical)
-                              /center_contr_analytical) < 1e-10
+        assert_allclose(center_contr, center_contr_analytical, rtol=5e-10)
+        assert_allclose(center_contr_numerical, center_contr_analytical, rtol=1e-11)
 
 
     def test_center_contribution_gto_longrange(self):
@@ -193,7 +192,5 @@ class TestRadialProjection:
                 center_contr_numerical[n] = quad(integrand, 0., np.inf)[0]
 
             # The three methods of computation should all agree 
-            assert np.linalg.norm((center_contr - center_contr_numerical)
-                              /center_contr_numerical) < 2e-7
-            assert np.linalg.norm((center_contr_numerical - center_contr_analytical)
-                                /center_contr_analytical) < 1e-14
+            assert_allclose(center_contr, center_contr_analytical, rtol=2e-7)
+            assert_allclose(center_contr_numerical, center_contr_analytical, rtol=1e-14)
