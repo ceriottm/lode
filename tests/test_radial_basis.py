@@ -104,7 +104,7 @@ class TestRadialProjection:
         assert np.linalg.norm(error) / error.size < 1e-6
 
     
-    def test_center_contribution_gto(self):
+    def test_center_contribution_gto_gaussian(self):
         # Define hyperparameters
         nmax = 6
         lmax = 2
@@ -148,9 +148,22 @@ class TestRadialProjection:
         assert np.linalg.norm((center_contr_numerical - center_contr_analytical)
                               /center_contr_analytical) < 1e-10
 
-        ###
-        # Repeat same steps for LR density (erf(x)/x instead of Gaussian)
-        ###
+
+    def test_center_contribution_gto_longrange(self):
+        # Define hyperparameters
+        nmax = 6
+        lmax = 2
+        rcut = 5.
+        sigma = 1.0
+        radial_basis = 'gto_primitive'
+
+        # Analytical evaluation of center contributions
+        normalization = 1./np.sqrt(2*np.pi*sigma**2)**3
+        sigma_radial = np.ones(nmax, dtype=float)
+        for i in range(1,nmax):
+            sigma_radial[i] = np.sqrt(i)
+        sigma_radial *= rcut/nmax
+
         # Define density function and compute center contributions
         lim = np.sqrt(2./np.pi) / sigma
         V_sr = lambda x: lim*(1. - (x/sigma/np.sqrt(2))**2/3)
@@ -170,17 +183,17 @@ class TestRadialProjection:
             radproj_lr = RadialBasis(nmax, lmax, rcut, sigma,
                                 radial_basis, True, density)
             radproj_lr.compute(np.pi/sigma, Nradial=2000)
-            center_contr_lr = radproj_lr.center_contributions
+            center_contr = radproj_lr.center_contributions
 
             # Numerical evaluation of center contributions
-            center_contr__lr_numerical = np.zeros((nmax))
+            center_contr_numerical = np.zeros((nmax))
             for n in range(nmax):
                 Rn = lambda r: r**n * np.exp(-0.5*r**2/sigma_radial[n]**2)
                 integrand = lambda r: np.sqrt(4 * np.pi) * Rn(r) * density(r) * r**2
                 center_contr_numerical[n] = quad(integrand, 0., np.inf)[0]
 
             # The three methods of computation should all agree 
-            assert np.linalg.norm((center_contr_lr - center_contr_numerical)
+            assert np.linalg.norm((center_contr - center_contr_numerical)
                               /center_contr_numerical) < 2e-7
             assert np.linalg.norm((center_contr_numerical - center_contr_analytical)
                                 /center_contr_analytical) < 1e-14
