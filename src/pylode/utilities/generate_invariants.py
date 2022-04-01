@@ -101,7 +101,7 @@ def generate_degree2_invariants_from_different(coeffs1, coeffs2):
             for in1 in range(nmax1):
                 for in2 in range(nmax2):
                     for l in range(lmax+1):
-                        radial_idx = in1 * nmax1 + in2
+                        radial_idx = in1 * nmax2 + in2
                         vec1 = coeffs1[:,ia1,in1,l**2:(l+1)**2]
                         vec2 = coeffs2[:,ia2,in2,l**2:(l+1)**2]
                         inv = np.sum(vec1 * vec2, axis=1) / np.sqrt(2*l+1) 
