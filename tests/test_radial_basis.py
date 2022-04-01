@@ -6,6 +6,7 @@ Created on Wed Jan 19 13:32:41 2022
 """
 
 import numpy as np
+from numpy.testing import assert_allclose
 from scipy.special import gamma, hyp1f1, erf, hyp2f1
 from scipy.integrate import quad
 from pylode.lib.radial_basis import innerprod, RadialBasis
@@ -104,7 +105,7 @@ class TestRadialProjection:
         assert np.linalg.norm(error) / error.size < 1e-6
 
     
-    def test_center_contribution_gto(self):
+    def test_center_contribution_gto_gaussian(self):
         # Define hyperparameters
         nmax = 6
         lmax = 2
@@ -143,14 +144,25 @@ class TestRadialProjection:
             center_contr_numerical[n] = quad(integrand, 0., np.inf)[0]
 
         # Check that the three methods agree with one another
-        assert np.linalg.norm((center_contr - center_contr_analytical)
-                              /center_contr_analytical) < 1e-9
-        assert np.linalg.norm((center_contr_numerical - center_contr_analytical)
-                              /center_contr_analytical) < 1e-10
+        assert_allclose(center_contr, center_contr_analytical, rtol=5e-10)
+        assert_allclose(center_contr_numerical, center_contr_analytical, rtol=1e-11)
 
-        ###
-        # Repeat same steps for LR density (erf(x)/x instead of Gaussian)
-        ###
+
+    def test_center_contribution_gto_longrange(self):
+        # Define hyperparameters
+        nmax = 6
+        lmax = 2
+        rcut = 5.
+        sigma = 1.0
+        radial_basis = 'gto_primitive'
+
+        # Analytical evaluation of center contributions
+        normalization = 1./np.sqrt(2*np.pi*sigma**2)**3
+        sigma_radial = np.ones(nmax, dtype=float)
+        for i in range(1,nmax):
+            sigma_radial[i] = np.sqrt(i)
+        sigma_radial *= rcut/nmax
+
         # Define density function and compute center contributions
         lim = np.sqrt(2./np.pi) / sigma
         V_sr = lambda x: lim*(1. - (x/sigma/np.sqrt(2))**2/3)
@@ -167,20 +179,55 @@ class TestRadialProjection:
             center_contr_analytical[n] *= prefac
 
         with np.errstate(divide='ignore', invalid='ignore'):
-            radproj_lr = RadialBasis(nmax, lmax, rcut, sigma,
+            radproj = RadialBasis(nmax, lmax, rcut, sigma,
                                 radial_basis, True, density)
-            radproj_lr.compute(np.pi/sigma, Nradial=2000)
-            center_contr_lr = radproj_lr.center_contributions
+            radproj.compute(np.pi/sigma, Nradial=2000)
+            center_contr = radproj.center_contributions
 
             # Numerical evaluation of center contributions
-            center_contr__lr_numerical = np.zeros((nmax))
+            center_contr_numerical = np.zeros((nmax))
             for n in range(nmax):
                 Rn = lambda r: r**n * np.exp(-0.5*r**2/sigma_radial[n]**2)
                 integrand = lambda r: np.sqrt(4 * np.pi) * Rn(r) * density(r) * r**2
                 center_contr_numerical[n] = quad(integrand, 0., np.inf)[0]
 
             # The three methods of computation should all agree 
-            assert np.linalg.norm((center_contr_lr - center_contr_numerical)
-                              /center_contr_numerical) < 2e-7
-            assert np.linalg.norm((center_contr_numerical - center_contr_analytical)
-                                /center_contr_analytical) < 1e-14
+            assert_allclose(center_contr, center_contr_analytical, rtol=2e-7)
+            assert_allclose(center_contr_numerical, center_contr_analytical, rtol=1e-14)
+    
+    def test_center_contribution_monomial_longrange(self):
+        # Define hyperparameters
+        nmax = 1
+        lmax = 2
+        rcut = 5.
+        sigma = 1.0
+        radial_basis = 'monomial'
+
+        # Define density function
+        lim = np.sqrt(2./np.pi) / sigma
+        V_sr = lambda x: lim*(1. - (x/sigma/np.sqrt(2))**2/3)
+        V_lr = lambda x: erf(x/sigma/np.sqrt(2))/x
+        density = lambda x: np.where(x>1e-5, V_lr(x), V_sr(x))
+
+        # Get center contributions from Radial Basis class
+        radproj = RadialBasis(nmax, lmax, rcut, sigma,
+                                 radial_basis, True, density)
+        center_contr = 0.
+        with np.errstate(divide='ignore', invalid='ignore'):
+            radproj.compute(np.pi/sigma, Nradial=2000)
+            center_contr = radproj.center_contributions
+        assert center_contr.shape == (1,)
+
+        # Analytical evaluation of center contribution
+        f = lambda x: 0.25 * ((2*x**2-1) * erf(x) + 2/np.sqrt(np.pi)*x*np.exp(-x**2))
+        arg = rcut / sigma / np.sqrt(2)
+        center_contr_analytical = 4*sigma**2 * np.sqrt(3*np.pi/rcut**3) * f(arg)
+
+        # Numerical evaluation of center contribution
+        Rn = lambda r: np.sqrt(3/rcut**3) * np.ones_like(r)
+        integrand = lambda r: np.sqrt(4 * np.pi) * Rn(r) * density(r) * r**2
+        center_contr_numerical = quad(integrand, 0., rcut)[0]
+        
+        # Run checks
+        assert abs(center_contr_analytical - center_contr[0]) < 6e-10        
+        assert abs(center_contr_analytical - center_contr_numerical) < 1e-11

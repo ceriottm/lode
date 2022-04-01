@@ -177,22 +177,22 @@ class RadialBasis():
 
             # Initialization of the arrays in which to store function values
             xx = np.linspace(0, rcut, Nradial)
-            normalizationsq = np.array(
-                [rcut**(2 * l + 3) / (2 * l + 3) for l in range(lmax + 1)])
-            self.orthonormalization_matrix = np.diag(
-                np.sqrt(1. / normalizationsq))
+            normalization = np.sqrt(np.array(
+                [(2*l + 3) / rcut**(2 * l + 3) for l in range(lmax + 1)]))
+            self.orthonormalization_matrix = np.diag(normalization)
 
             # Evaluate the target function and generate spline approximation
             for l in range(lmax + 1):
                 for ik, k in enumerate(kk):
                     bessel = spherical_jn(l, k * xx)
                     projcoeffs[ik, 0, l] = innerprod(
-                        xx, xx**l, bessel) / normalizationsq[l]
+                        xx, xx**l, bessel) * normalization[l]
 
             # Compute self contribution to the l=0 components
             if self.subtract_self:
                 density = self.density_function(xx)
-                self.center_contributions[0] = innerprod(
-                    xx, xx**0, density) / normalizationsq[0]
+                prefac = np.sqrt(4 * np.pi)
+                self.center_contributions[0] = prefac * innerprod(
+                    xx, np.ones_like(xx), density) * normalization[0]
 
         self.radial_spline = CubicSpline(kk, projcoeffs)
