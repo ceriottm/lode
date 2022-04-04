@@ -339,25 +339,30 @@ class DensityProjectionCalculator():
         struc_factor_grad = np.zeros((lmax+1)**2)
 
         # Loop over center atom
-        for icenter in range(num_atoms):
+        for i_center in range(num_atoms):
+
+            # index describing chemical species of center atom
+            i_chem_center = iterator_species[i_center]
+
             # Loop over all atoms in the structure (including central atom)
+            for i_neigh in range(num_atoms):
 
-            if self.subtract_center_contribution:
-                center_contrib = self.radial_proj.center_contributions
-                frame_features[icenter, icenter, :, 0] -= center_contrib
-
-            for ineigh in range(num_atoms):
-                i_chem = int(iterator_species[ineigh]) # index describing chemical species
+                # index describing chemical species of neighbor
+                i_chem_neigh = iterator_species[i_neigh]
 
                 if self.potential_exponent == 0: # add constant term
                     I_nl_zero = self.radial_proj.radial_spline(0)
                     I_nl_zero /= np.sqrt(4 * np.pi)
-                    frame_features[icenter, i_chem, :, 0] += I_nl_zero[:,0] * global_factor
+                    frame_features[i_center, i_chem_neigh, :, 0] += I_nl_zero[:,0] * global_factor
+
+                if self.subtract_center_contribution and i_chem_center == i_chem_neigh:
+                    center_contrib = self.radial_proj.center_contributions
+                    frame_features[i_center, i_chem_neigh, :, 0] -= center_contrib
 
                 # Loop over all k-vectors
                 for ik, kvector in enumerate(kvectors):
-                    fourier_real = strucfac_real[ik,icenter,ineigh]
-                    fourier_imag = strucfac_real[ik,icenter,ineigh]
+                    fourier_real = strucfac_real[ik, i_center, i_neigh]
+                    fourier_imag = strucfac_real[ik, i_center, i_neigh]
 
                     # Phase factors depending on parity of l
                     for l in range(lmax+1):
@@ -367,10 +372,18 @@ class DensityProjectionCalculator():
                             struc_factor[l**2:(l+1)**2] = angular_phases[l] * fourier_imag
 
                     # Update features
-                    # print('Current features =\n', np.round(frame_features[icenter, i_chem].T, 8))
-                    # print('Additional term =\n', np.round(global_factor * struc_factor * k_dep_factor[ik], 8).T)
-                    frame_features[icenter, i_chem] += 2 * global_factor * struc_factor * k_dep_factor[ik]
-                    # print('New features =\n', np.round(frame_features[icenter, i_chem].T, 8))
+                    logger.debug(
+                        "Current features =\n"
+                        f"{(frame_features[i_center, i_chem_neigh].T).round(8)}")
+                    logger.debug(
+                        "Additional term =\n"
+                        f"{(global_factor * struc_factor * k_dep_factor[ik]).round(8).T}")
+
+                    frame_features[i_center, i_chem_neigh] += 2 * global_factor * struc_factor * k_dep_factor[ik]
+
+                    logger.debug(
+                        "New features =\n"
+                        f"{(frame_features[i_center, i_chem_neigh].T).round(8)}")
 
                     # Update gradients
                     if self.compute_gradients:
@@ -382,9 +395,9 @@ class DensityProjectionCalculator():
                                 struc_factor_grad[l**2:(l+1)**2] = angular_phases[l] * fourier_real
 
                         # Update x,y,z components
-                        frame_gradients[ineigh + icenter * num_atoms, 0, i_chem] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[0]
-                        frame_gradients[ineigh + icenter * num_atoms, 1, i_chem] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[1]
-                        frame_gradients[ineigh + icenter * num_atoms, 2, i_chem] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[2]
+                        frame_gradients[i_neigh + i_center * num_atoms, :, i_chem_neigh] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[0]
+                        frame_gradients[i_neigh + i_center * num_atoms, 1, i_chem_neigh] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[1]
+                        frame_gradients[i_neigh + i_center * num_atoms, 2, i_chem_neigh] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[2]
 
         if self.compute_gradients:
             return frame_features, frame_gradients
