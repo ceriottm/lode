@@ -246,7 +246,7 @@ class DensityProjectionCalculator():
         num_lm = (lmax+1)**2
         num_atoms = len(frame)
         num_chem_species = len(species_dict)
-        iterator_species = np.zeros(num_atoms)
+        iterator_species = np.zeros(num_atoms, dtype=int)
         for i, symbol in enumerate(frame.get_chemical_symbols()):
             iterator_species[i] = species_dict[symbol]
 
@@ -371,19 +371,19 @@ class DensityProjectionCalculator():
                         else:
                             struc_factor[l**2:(l+1)**2] = angular_phases[l] * fourier_imag
 
-                    # Update features
-                    logger.debug(
-                        "Current features =\n"
-                        f"{(frame_features[i_center, i_chem_neigh].T).round(8)}")
-                    logger.debug(
-                        "Additional term =\n"
-                        f"{(global_factor * struc_factor * k_dep_factor[ik]).round(8).T}")
+                    # # Update features
+                    # logger.debug(
+                    #     "Current features =\n"
+                    #     f"{(frame_features[i_center, i_chem_neigh].T).round(8)}")
+                    # logger.debug(
+                    #     "Additional term =\n"
+                    #     f"{(global_factor * struc_factor * k_dep_factor[ik]).round(8).T}")
 
                     frame_features[i_center, i_chem_neigh] += 2 * global_factor * struc_factor * k_dep_factor[ik]
 
-                    logger.debug(
-                        "New features =\n"
-                        f"{(frame_features[i_center, i_chem_neigh].T).round(8)}")
+                    # logger.debug(
+                    #     "New features =\n"
+                    #     f"{(frame_features[i_center, i_chem_neigh].T).round(8)}")
 
                     # Update gradients
                     if self.compute_gradients:
