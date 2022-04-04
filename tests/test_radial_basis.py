@@ -117,7 +117,7 @@ class TestRadialProjection:
         prefac = 1./np.power(2*np.pi*sigma**2,1.5)
         density = lambda x: prefac * np.exp(-0.5*x**2/sigma)
         radproj = RadialBasis(nmax, lmax, rcut, sigma,
-                              radial_basis, True, density)
+                              radial_basis, True, potential_exponent=0)
         radproj.compute(np.pi/sigma, Nradial=10000)
         center_contr = radproj.center_contributions 
 
@@ -180,7 +180,7 @@ class TestRadialProjection:
 
         with np.errstate(divide='ignore', invalid='ignore'):
             radproj = RadialBasis(nmax, lmax, rcut, sigma,
-                                radial_basis, True, density)
+                                radial_basis, True, potential_exponent=1)
             radproj.compute(np.pi/sigma, Nradial=2000)
             center_contr = radproj.center_contributions
 
@@ -211,7 +211,7 @@ class TestRadialProjection:
 
         # Get center contributions from Radial Basis class
         radproj = RadialBasis(nmax, lmax, rcut, sigma,
-                                 radial_basis, True, density)
+                                 radial_basis, True, potential_exponent=1)
         center_contr = 0.
         with np.errstate(divide='ignore', invalid='ignore'):
             radproj.compute(np.pi/sigma, Nradial=2000)

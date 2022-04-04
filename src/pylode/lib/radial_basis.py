@@ -7,7 +7,7 @@ Created on Tue Mar 16 19:42:22 2021
 
 import numpy as np
 from scipy.interpolate import CubicSpline
-from scipy.special import spherical_jn  # arguments (n,z)
+from scipy.special import erf, spherical_jn  # arguments (n,z)
 
 try:
     from scipy.integrate import simpson
@@ -81,7 +81,7 @@ class RadialBasis():
                  smearing,
                  radial_basis,
                  subtract_self=False,
-                 density_function=None):
+                 potential_exponent=0):
         # Store the provided hyperparameters
         self.smearing = smearing
         self.max_radial = max_radial
@@ -90,8 +90,19 @@ class RadialBasis():
         self.radial_basis = radial_basis.lower()
 
         # Store the optional parameters related to the self contribution
-        self.subtract_self = subtract_self
-        self.density_function = density_function
+        self.subtract_center_contribution = subtract_self
+
+        # Preparation for the extra steps in case the contribution to
+        # the density by the center atom is to be subtracted
+        if self.subtract_center_contribution:
+            if potential_exponent == 0:
+                prefac = 1./np.power(2*np.pi*self.smearing**2,1.5)
+                density = lambda x: prefac * np.exp(-0.5*x**2/self.smearing)
+            elif potential_exponent == 1:
+                lim = np.sqrt(2./np.pi) / self.smearing
+                density = lambda x: np.nan_to_num(erf(x/self.smearing/np.sqrt(2))/x,
+                                                  nan=lim, posinf=lim)
+            self.density_function = density
 
         if self.radial_basis not in ["monomial", "gto", "gto_primitive"]:
             raise ValueError(f"{self.radial_basis} is not an implemented basis"
@@ -165,7 +176,7 @@ class RadialBasis():
                             xx, R_n_ortho[n], bessel)
 
             # Compute self contribution to the l=0 components
-            if self.subtract_self:
+            if self.subtract_center_contribution:
                 prefac = np.sqrt(4 * np.pi)
                 density = self.density_function(xx)
                 for n in range(nmax):
@@ -189,7 +200,7 @@ class RadialBasis():
                         xx, xx**l, bessel) * normalization[l]
 
             # Compute self contribution to the l=0 components
-            if self.subtract_self:
+            if self.subtract_center_contribution:
                 density = self.density_function(xx)
                 prefac = np.sqrt(4 * np.pi)
                 self.center_contributions[0] = prefac * innerprod(
