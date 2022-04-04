@@ -154,7 +154,7 @@ class DensityProjectionCalculator():
                                        density)
         self.radial_proj.compute(np.pi/self.smearing)
 
-    def transform(self, frames, species_dict, show_progress=False):
+    def transform(self, frames, show_progress=False):
         """
         Computes the features and (if compute_gradients == True) gradients
         for all the provided frames. The features and gradients are stored in
@@ -164,10 +164,6 @@ class DensityProjectionCalculator():
         ----------
         frames : ase.Atoms
             List containing all ase.Atoms structures
-
-        species_dict: Dictionary
-            All chemical species present in the system with their mapping to
-            indices, e.g. for BaTiO3: {'O':0, 'Ti':1, 'Ba':2}
         show_progress : bool
             Show progress bar for frame analysis
 
@@ -176,6 +172,16 @@ class DensityProjectionCalculator():
         None, but stores the projection coefficients and (if desired)
         gradients as arrays as `features` and `features_gradients`.
         """
+
+        # Construct species dict
+        species_dict = {}
+        for frame in frames:
+            #Get atomic species in dataset
+            species_dict.update({atom.symbol: atom.number for atom in frame})
+
+        # Use a dens number for indices .i.e 11, 17 -> 0, 1
+        species_dict = {symbol: i for i, symbol in enumerate(species_dict)}
+
         # Define variables determining size of feature vector coming from frames
         num_atoms_per_frame = np.array([len(frame) for frame in frames])
         num_atoms_total = np.sum(num_atoms_per_frame)
@@ -199,8 +205,6 @@ class DensityProjectionCalculator():
             frame_generator = frames
 
         self.representation_info = np.zeros([len(frames) * np.sum(num_atoms_per_frame), 3])
-        # Use a dens number for indices .i.e 11, 17 -> 0, 1
-        _species_dict = {symbol: i for i, symbol in enumerate(species_dict)}
 
         index = 0
         for i_frame, frame in enumerate(frame_generator):
@@ -213,7 +217,7 @@ class DensityProjectionCalculator():
                 self.representation_info[index, 2] = atom.number
                 index += 1
 
-            results = self._transform_single_frame(frame, _species_dict)
+            results = self._transform_single_frame(frame, species_dict)
 
             # Returned values are only the features
             if not self.compute_gradients:

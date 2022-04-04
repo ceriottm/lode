@@ -31,18 +31,8 @@ def lode_get_features(frames, show_progress=False, **hypers):
     X : np.ndarray of shape (n_sets, n_atoms, n_chem_species, max_radial, (max_angular + 1)**2)
         feature array
     """
-
-    species_dict = {}
-    for frame in frames:
-        # Move atoms in unitcell
-        frame.wrap()
-        #Get atomic species in dataset
-        species_dict.update({atom.symbol: atom.number for atom in frame})
-
     calculator = LODE(**hypers)
-
     calculator.transform(frames=frames,
-                         species_dict=species_dict,
                          show_progress=show_progress)
 
     return calculator.features

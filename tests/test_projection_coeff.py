@@ -18,15 +18,12 @@ def test_lode():
     # Test 1: Convergence of norm
     # NOTE: Currently, this is only used to check that the code actually runs
     frames = []
-    cell = np.eye(3) * 14
-    distances = np.linspace(2, 3., 5)
+    cell = 14 * np.eye(3)
+    distances = np.linspace(2, 3, 5)
     for d in distances:
         positions2 = [[1, 1, 1], [1, 1, d + 1]]
         frame = Atoms('O2', positions=positions2, cell=cell, pbc=True)
         frames.append(frame)
-
-    species_dict = {'O': 0}
-    sigma = 1.5
 
     ns = [2, 4, 6]
     ls = [1, 3, 5]
@@ -34,7 +31,7 @@ def test_lode():
     for i, n in enumerate(ns):
         for j, l in enumerate(ls):
             hypers = {
-                'smearing': sigma,
+                'smearing': 1.5,
                 'max_angular': l,
                 'max_radial': n,
                 'cutoff_radius': 5.,
@@ -43,7 +40,7 @@ def test_lode():
                 'compute_gradients': True
             }
             calculator = DensityProjectionCalculator(**hypers)
-            calculator.transform(frames, species_dict)
+            calculator.transform(frames)
             features_temp = calculator.features
             norms[i, j] = np.linalg.norm(features_temp[0, 0])
 
@@ -139,8 +136,6 @@ class TestMadelung:
         frames = crystal_dictionary[crystal_name]["frames"]
         n_atoms = len(crystal_dictionary[crystal_name]["symbols"])
 
-        species_dict = {atom.symbol: atom.number for atom in frames[0]}
-
         calculator = DensityProjectionCalculator(
             max_radial=1,
             max_angular=0,
@@ -149,7 +144,7 @@ class TestMadelung:
             radial_basis="monomial",
             subtract_center_contribution=True)
 
-        calculator.transform(frames=frames, species_dict=species_dict)
+        calculator.transform(frames=frames)
         features = calculator.features
         features = features.reshape(len(frames), n_atoms, *features.shape[1:])
 
