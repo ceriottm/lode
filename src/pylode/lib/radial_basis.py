@@ -102,6 +102,8 @@ class RadialBasis():
                 lim = np.sqrt(2./np.pi) / self.smearing
                 density = lambda x: np.nan_to_num(erf(x/self.smearing/np.sqrt(2))/x,
                                                   nan=lim, posinf=lim)
+            else:
+                raise ValueError("Potential exponent has to be one of 0 or 1!")
             self.density_function = density
 
         if self.radial_basis not in ["monomial", "gto", "gto_primitive"]:
