@@ -7,6 +7,8 @@ angular channel l=0,1,2,...,lmax is supported.
 
 """
 
+import logging
+
 # Generic imports
 import numpy as np
 from scipy.special import erf
@@ -19,6 +21,8 @@ except ImportError:
 from .kvec_generator import KvectorGenerator
 from .radial_basis import RadialBasis
 from .spherical_harmonics import evaluate_spherical_harmonics
+
+logger = logging.getLogger(__name__)
 
 
 class DensityProjectionCalculator():
@@ -245,6 +249,10 @@ class DensityProjectionCalculator():
         # Initialize arrays in which to store all features
         frame_features = np.zeros((num_atoms, num_chem_species,
                                   self.max_radial, (self.max_angular+1)**2))
+
+        logger.debug(f"num_atoms = {num_atoms}")
+        logger.debug(f"shape frame_features = {frame_features.shape}")
+
         if self.compute_gradients:
             num_gradients = np.sum(num_atoms**2)
             frame_gradients = np.zeros((num_gradients, 3, num_chem_species,

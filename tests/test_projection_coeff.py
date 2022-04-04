@@ -55,13 +55,16 @@ def test_lode():
 
 
 class TestMadelung:
-    """Test LODE feature against Madelung constant of different crystal."""
+    """Test LODE feature against Madelung constant of different crystals."""
 
     scaling_factors = np.array([.8, 1, 2, 5, 10])
     crystal_list = ["NaCl", "CsCl", "ZnS"]
 
     def build_frames(self, symbols, positions, cell, scaling_factors):
-        """Build an list of ase Atoms instances based.
+        """Build an list of `ase.Atoms` instances.
+        
+        The list build by scaling the positions and cell size according to
+        `scaling_factors`.
 
         Parameters
         ----------
@@ -131,13 +134,12 @@ class TestMadelung:
 
         return d
 
-    @pytest.mark.parametrize("crystal", crystal_list)
-    def test_madelung(self, crystal_dictionary, crystal):
-        frames = crystal_dictionary[crystal]["frames"]
-        n_atoms = len(crystal_dictionary[crystal]["symbols"])
+    @pytest.mark.parametrize("crystal_name", crystal_list)
+    def test_madelung(self, crystal_dictionary, crystal_name):
+        frames = crystal_dictionary[crystal_name]["frames"]
+        n_atoms = len(crystal_dictionary[crystal_name]["symbols"])
 
         species_dict = {atom.symbol: atom.number for atom in frames[0]}
-        print(species_dict)
 
         calculator = DensityProjectionCalculator(
             max_radial=1,
@@ -153,4 +155,4 @@ class TestMadelung:
 
         # Contribution of second atom on first atom
         X = features[:, 0, 0, :] - features[:, 0, 1, :]
-        assert_allclose(-X, crystal_dictionary[crystal]["madelung"])
+        assert_allclose(-X, crystal_dictionary[crystal_name]["madelung"])
