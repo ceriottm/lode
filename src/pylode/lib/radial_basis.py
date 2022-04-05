@@ -74,8 +74,6 @@ class RadialBasis():
         channel l leading to a total of (lmax+1)^2 features.
     exclude_center : bool
         Exclude contribution from the central atom.
-    density_function : callable
-        TODO
 
     Attributes
     ----------
