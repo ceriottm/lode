@@ -59,9 +59,10 @@ class TestMadelung:
 
     def build_frames(self, symbols, positions, cell, scaling_factors):
         """Build an list of `ase.Atoms` instances.
-        
-        The list build by scaling the positions and cell size according to
-        `scaling_factors`.
+
+        Starting from a cell and atomic positions specifying an ASE Atoms 
+        object, generate a list containing scaled versions of the original
+        frame. 
 
         Parameters
         ----------

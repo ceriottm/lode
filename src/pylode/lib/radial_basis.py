@@ -81,7 +81,7 @@ class RadialBasis():
                  smearing,
                  radial_basis,
                  subtract_self=False,
-                 potential_exponent=0):
+                 potential_exponent=1):
         # Store the provided hyperparameters
         self.smearing = smearing
         self.max_radial = max_radial
@@ -103,7 +103,7 @@ class RadialBasis():
                 density = lambda x: np.nan_to_num(erf(x/self.smearing/np.sqrt(2))/x,
                                                   nan=lim, posinf=lim)
             else:
-                raise ValueError("Potential exponent has to be one of 0 or 1!")
+                raise ValueError(f"Potential exponent is {potential_exponent} but has to be one of 0 or 1!")
             self.density_function = density
 
         if self.radial_basis not in ["monomial", "gto", "gto_primitive"]:

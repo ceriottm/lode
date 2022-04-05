@@ -130,19 +130,6 @@ class DensityProjectionCalculator():
         # times the number of chemical species
         self.num_features_bare = self.max_radial * (self.max_angular + 1)**2
 
-        # Preparation for the extra steps in case the contribution to
-        # the density by the center atom is to be subtracted
-        if self.subtract_center_contribution:
-            if potential_exponent == 0:
-                prefac = 1./np.power(2*np.pi*self.smearing**2,1.5)
-                density = lambda x: prefac * np.exp(-0.5*x**2/self.smearing)
-            elif potential_exponent == 1:
-                lim = np.sqrt(2./np.pi) / self.smearing
-                density = lambda x: np.nan_to_num(erf(x/self.smearing/np.sqrt(2))/x,
-                                                  nan=lim, posinf=lim)
-        else:
-            density = None
-
         # Initialize radial basis class to precompute the quantities
         # only related to the choice of radial basis, namely the
         # projections of the spherical Bessel functions j_l(kr) onto the
@@ -150,8 +137,8 @@ class DensityProjectionCalculator():
         self.radial_proj = RadialBasis(self.max_radial, self.max_angular,
                                        self.cutoff_radius, self.smearing,
                                        self.radial_basis,
-                                       self.subtract_center_contribution,
-                                       density)
+                                       potential_exponent,
+                                       self.subtract_center_contribution)
         self.radial_proj.compute(np.pi/self.smearing)
 
     def transform(self, frames, show_progress=False):
