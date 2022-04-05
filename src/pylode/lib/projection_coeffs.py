@@ -349,7 +349,7 @@ class DensityProjectionCalculator():
                 # Loop over all k-vectors
                 for ik, kvector in enumerate(kvectors):
                     fourier_real = strucfac_real[ik, i_center, i_neigh]
-                    fourier_imag = strucfac_real[ik, i_center, i_neigh]
+                    fourier_imag = strucfac_imag[ik, i_center, i_neigh]
 
                     # Phase factors depending on parity of l
                     for l in range(lmax+1):
