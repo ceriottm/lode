@@ -15,6 +15,20 @@ except ImportError:  # scipy <= 1.5.4
     from scipy.integrate import simps as simpson
 
 
+def gaussian(x, smearing):
+    prefac = 1. / np.power(2 * np.pi * smearing**2, 1.5)
+    return prefac * np.exp(-0.5 * x**2 / smearing)
+
+
+def erfxx(x, smearing):
+    lim = np.sqrt(2. / np.pi) / smearing
+    with np.errstate(divide='ignore'):
+        res = np.nan_to_num(erf(x / smearing / np.sqrt(2)) / x,
+                            nan=lim,
+                            posinf=lim)
+    return res
+
+
 def innerprod(xx, yy1, yy2):
     """
     Compute the inner product of two radially symmetric functions.
@@ -96,14 +110,12 @@ class RadialBasis():
         # the density by the center atom is to be subtracted
         if self.subtract_center_contribution:
             if potential_exponent == 0:
-                prefac = 1./np.power(2*np.pi*self.smearing**2,1.5)
-                density = lambda x: prefac * np.exp(-0.5*x**2/self.smearing)
+                density = lambda x: gaussian(x, self.smearing)
             elif potential_exponent == 1:
-                lim = np.sqrt(2./np.pi) / self.smearing
-                density = lambda x: np.nan_to_num(erf(x/self.smearing/np.sqrt(2))/x,
-                                                  nan=lim, posinf=lim)
+                density = lambda x: erfxx(x, self.smearing)
             else:
-                raise ValueError(f"Potential exponent is {potential_exponent} but has to be one of 0 or 1!")
+                raise ValueError(f"Potential exponent is {potential_exponent}"
+                                 " but has to be one of 0 or 1!")
             self.density_function = density
 
         if self.radial_basis not in ["monomial", "gto", "gto_primitive"]:

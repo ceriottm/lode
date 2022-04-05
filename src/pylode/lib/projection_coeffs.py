@@ -191,7 +191,7 @@ class DensityProjectionCalculator():
         else:
             frame_generator = frames
 
-        self.representation_info = np.zeros([len(frames) * np.sum(num_atoms_per_frame), 3])
+        self.representation_info = np.zeros([np.sum(num_atoms_per_frame), 3])
 
         index = 0
         for i_frame, frame in enumerate(frame_generator):
