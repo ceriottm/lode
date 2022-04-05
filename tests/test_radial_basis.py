@@ -178,22 +178,21 @@ class TestRadialProjection:
             center_contr_analytical[n] = hyp2f1(0.5,neff,1.5,arg) * gamma(neff)
             center_contr_analytical[n] *= prefac
 
-        with np.errstate(divide='ignore', invalid='ignore'):
-            radproj = RadialBasis(nmax, lmax, rcut, sigma,
-                                radial_basis, True, potential_exponent=1)
-            radproj.compute(np.pi/sigma, Nradial=2000)
-            center_contr = radproj.center_contributions
+        radproj = RadialBasis(nmax, lmax, rcut, sigma,
+                            radial_basis, True, potential_exponent=1)
+        radproj.compute(np.pi/sigma, Nradial=2000)
+        center_contr = radproj.center_contributions
 
-            # Numerical evaluation of center contributions
-            center_contr_numerical = np.zeros((nmax))
-            for n in range(nmax):
-                Rn = lambda r: r**n * np.exp(-0.5*r**2/sigma_radial[n]**2)
-                integrand = lambda r: np.sqrt(4 * np.pi) * Rn(r) * density(r) * r**2
-                center_contr_numerical[n] = quad(integrand, 0., np.inf)[0]
+        # Numerical evaluation of center contributions
+        center_contr_numerical = np.zeros((nmax))
+        for n in range(nmax):
+            Rn = lambda r: r**n * np.exp(-0.5*r**2/sigma_radial[n]**2)
+            integrand = lambda r: np.sqrt(4 * np.pi) * Rn(r) * density(r) * r**2
+            center_contr_numerical[n] = quad(integrand, 0., np.inf)[0]
 
-            # The three methods of computation should all agree 
-            assert_allclose(center_contr, center_contr_analytical, rtol=2e-7)
-            assert_allclose(center_contr_numerical, center_contr_analytical, rtol=1e-14)
+        # The three methods of computation should all agree 
+        assert_allclose(center_contr, center_contr_analytical, rtol=2e-7)
+        assert_allclose(center_contr_numerical, center_contr_analytical, rtol=1e-14)
     
     def test_center_contribution_monomial_longrange(self):
         # Define hyperparameters
@@ -213,9 +212,8 @@ class TestRadialProjection:
         radproj = RadialBasis(nmax, lmax, rcut, sigma,
                                  radial_basis, True, potential_exponent=1)
         center_contr = 0.
-        with np.errstate(divide='ignore', invalid='ignore'):
-            radproj.compute(np.pi/sigma, Nradial=2000)
-            center_contr = radproj.center_contributions
+        radproj.compute(np.pi/sigma, Nradial=2000)
+        center_contr = radproj.center_contributions
         assert center_contr.shape == (1,)
 
         # Analytical evaluation of center contribution
