@@ -54,7 +54,7 @@ def test_lode():
 class TestMadelung:
     """Test LODE feature against Madelung constant of different crystals."""
 
-    scaling_factors = np.array([.8, 1, 2, 5, 10])
+    scaling_factors = np.geomspace(0.5, 2, 7)
     crystal_list = ["NaCl", "CsCl", "ZnS"]
 
     def build_frames(self, symbols, positions, cell, scaling_factors):
@@ -97,13 +97,11 @@ class TestMadelung:
         """Init dictionary for crystal paramaters."""
         d = {k: {} for k in self.crystal_list}
 
-        d["NaCl"]["symbols"] = 4 * ['Na'] + 4 * ['Cl']
-        d["NaCl"]["positions"] = np.array([[.0, .0, .0], [.5, .5, .0],
-                                           [.5, .0, .5], [.0, .5, .5],
-                                           [.5, .0, .0], [.0, .5, .0],
-                                           [.0, .0, .5], [.5, .5, .5]])
-        d["NaCl"]["cell"] = np.diag([1, 1, 1])
-        d["NaCl"]["madelung"] = 1.7476 / 2
+        d["NaCl"]["symbols"] = ['Na', 'Cl']
+        d["NaCl"]["positions"] = np.array([[0, 0, 0], [1,0,0]])
+        d["NaCl"]["cell"] = np.array([[0, 1, 1], [1, 0, 1], [1, 1, 0]])
+        d["NaCl"]["madelung"] = 1.7476
+
         frames = self.build_frames(symbols=d["NaCl"]["symbols"],
                                    positions=d["NaCl"]["positions"],
                                    cell=d["NaCl"]["cell"],
@@ -112,8 +110,10 @@ class TestMadelung:
 
         d["CsCl"]["symbols"] = ["Cs", "Cl"]
         d["CsCl"]["positions"] = np.array([[0, 0, 0], [.5, .5, .5]])
-        d["CsCl"]["cell"] = np.diag([1, 1, 1])
-        d["CsCl"]["madelung"] = 1.7626 / 2 / np.sqrt(3)
+        d["CsCl"]["cell"] = np.diag([1, 1, 1]) 
+        d["CsCl"]["madelung"] = 1.7626 * 2 / np.sqrt(3)
+        #d["CsCl"]["madelung"] = 1.7626
+        
         frames = self.build_frames(symbols=d["CsCl"]["symbols"],
                                    positions=d["CsCl"]["positions"],
                                    cell=d["CsCl"]["cell"],
@@ -123,7 +123,9 @@ class TestMadelung:
         d["ZnS"]["symbols"] = ["Zn", "S"]
         d["ZnS"]["positions"] = np.array([[0, 0, 0], [.5, .5, .5]])
         d["ZnS"]["cell"] = np.array([[0, 1, 1], [1, 0, 1], [1, 1, 0]])
-        d["ZnS"]["madelung"] = 1.63805505338879 / 4 / np.sqrt(3)
+        #d["ZnS"]["madelung"] = 1.63805505338879 / 4 / np.sqrt(3)
+        d["ZnS"]["madelung"] = 1.63805505338879 * 2 / np.sqrt(3)
+        
         frames = self.build_frames(symbols=d["ZnS"]["symbols"],
                                    positions=d["ZnS"]["positions"],
                                    cell=d["ZnS"]["cell"],
@@ -134,14 +136,15 @@ class TestMadelung:
 
     @pytest.mark.parametrize("crystal_name", crystal_list)
     def test_madelung(self, crystal_dictionary, crystal_name):
+        rcut = 0.05
         frames = crystal_dictionary[crystal_name]["frames"]
         n_atoms = len(crystal_dictionary[crystal_name]["symbols"])
 
         calculator = DensityProjectionCalculator(
             max_radial=1,
             max_angular=0,
-            cutoff_radius=0.5,
-            smearing=0.3,
+            cutoff_radius=rcut,
+            smearing=0.15,
             radial_basis="monomial",
             subtract_center_contribution=True)
 
@@ -150,5 +153,10 @@ class TestMadelung:
         features = features.reshape(len(frames), n_atoms, *features.shape[1:])
 
         # Contribution of second atom on first atom
-        X = features[:, 0, 0, :] - features[:, 0, 1, :]
-        #assert_allclose(-X, crystal_dictionary[crystal_name]["madelung"])
+        global_factor = 1./np.sqrt(4*np.pi/3.*rcut**3)
+        X = -global_factor * (features[:, 0, 0, :] - features[:, 0, 1, :])
+        assert_allclose(X.flatten(),
+                        crystal_dictionary[crystal_name]["madelung"] / self.scaling_factors,
+                        rtol=5e-2)
+
+        
