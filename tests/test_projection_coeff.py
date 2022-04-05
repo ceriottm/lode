@@ -94,9 +94,19 @@ class TestMadelung:
 
     @pytest.fixture
     def crystal_dictionary(self):
-        """Init dictionary for crystal paramaters."""
+        """
+        Define the parameters of the three binary crystal structures:
+        NaCl, CsCl and ZnCl. The reference values of the Madelung
+        constants is taken from the book "Solid State Physics"
+        by Ashcroft and Mermin.
+        """
+        # Initialize dictionary for crystal paramaters
         d = {k: {} for k in self.crystal_list}
 
+        # NaCl structure
+        # Using a primitive unit cell, the distance between the
+        # closest Na-Cl pair is exactly 1. The cubic unit cell
+        # in these units would have a length of 2.
         d["NaCl"]["symbols"] = ['Na', 'Cl']
         d["NaCl"]["positions"] = np.array([[0, 0, 0], [1, 0, 0]])
         d["NaCl"]["cell"] = np.array([[0, 1, 1], [1, 0, 1], [1, 1, 0]])
@@ -108,6 +118,11 @@ class TestMadelung:
                                    scaling_factors=self.scaling_factors)
         d["NaCl"]["frames"] = frames
 
+        # CsCl structure
+        # This structure is simple since the primitive unit cell
+        # is just the usual cubic cell with side length set to one.
+        # The closest Cs-Cl distance is sqrt(3)/2. We thus divide
+        # the Madelung constant by this value to match the reference.
         d["CsCl"]["symbols"] = ["Cs", "Cl"]
         d["CsCl"]["positions"] = np.array([[0, 0, 0], [.5, .5, .5]])
         d["CsCl"]["cell"] = np.diag([1, 1, 1])
@@ -119,6 +134,13 @@ class TestMadelung:
                                    scaling_factors=self.scaling_factors)
         d["CsCl"]["frames"] = frames
 
+        # ZnS (zincblende) structure
+        # As for NaCl, a primitive unit cell is used which makes
+        # the lattice parameter of the cubic cell equal to 2.
+        # In these units, the closest Zn-S distance is sqrt(3)/2.
+        # We thus divide the Madelung constant by this value.
+        # If, on the other hand, we set the lattice constant of
+        # the cubic cell equal to 1, the Zn-S distance is sqrt(3)/4. 
         d["ZnS"]["symbols"] = ["Zn", "S"]
         d["ZnS"]["positions"] = np.array([[0, 0, 0], [.5, .5, .5]])
         d["ZnS"]["cell"] = np.array([[0, 1, 1], [1, 0, 1], [1, 1, 0]])
