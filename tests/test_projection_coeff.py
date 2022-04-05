@@ -98,7 +98,7 @@ class TestMadelung:
         d = {k: {} for k in self.crystal_list}
 
         d["NaCl"]["symbols"] = ['Na', 'Cl']
-        d["NaCl"]["positions"] = np.array([[0, 0, 0], [1,0,0]])
+        d["NaCl"]["positions"] = np.array([[0, 0, 0], [1, 0, 0]])
         d["NaCl"]["cell"] = np.array([[0, 1, 1], [1, 0, 1], [1, 1, 0]])
         d["NaCl"]["madelung"] = 1.7476
 
@@ -123,7 +123,7 @@ class TestMadelung:
         d["ZnS"]["positions"] = np.array([[0, 0, 0], [.5, .5, .5]])
         d["ZnS"]["cell"] = np.array([[0, 1, 1], [1, 0, 1], [1, 1, 0]])
         d["ZnS"]["madelung"] = 2 * 1.6381 / np.sqrt(3)
- 
+
         frames = self.build_frames(symbols=d["ZnS"]["symbols"],
                                    positions=d["ZnS"]["positions"],
                                    cell=d["ZnS"]["cell"],
@@ -153,9 +153,10 @@ class TestMadelung:
         features = features.reshape(len(frames), n_atoms, *features.shape[1:])
 
         # Contribution of second atom on first atom
-        global_factor = 1 / np.sqrt(4 * np.pi/3 * rcut**3)
+        global_factor = 1 / np.sqrt(4 * np.pi / 3 * rcut**3)
         X = -global_factor * (features[:, 0, 0, :] - features[:, 0, 1, :])
 
         assert_allclose(X.flatten(),
-                        crystal_dictionary[crystal_name]["madelung"] / self.scaling_factors,
+                        crystal_dictionary[crystal_name]["madelung"] /
+                        self.scaling_factors,
                         rtol=6e-1)
