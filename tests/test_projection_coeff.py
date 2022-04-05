@@ -132,7 +132,7 @@ class TestMadelung:
 
         return d
 
-    @pytest.mark.parametrize("smearing", [0.1, 0.15, 0.2, 0.3])
+    @pytest.mark.parametrize("smearing", [0.1, 0.15, 0.2])
     @pytest.mark.parametrize("rcut", [0.01, 0.05, 0.1, 0.2])
     @pytest.mark.parametrize("crystal_name", crystal_list)
     def test_madelung(self, crystal_dictionary, smearing, rcut, crystal_name):
