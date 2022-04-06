@@ -62,6 +62,9 @@ class TestMadelung:
         NaCl, CsCl and ZnCl. The reference values of the Madelung
         constants is taken from the book "Solid State Physics"
         by Ashcroft and Mermin.
+
+        Note: Symbols and charges keys have to be sorted according to their
+        atomic number!
         """
         # Initialize dictionary for crystal paramaters
         d = {k: {} for k in self.crystal_list}
@@ -71,6 +74,7 @@ class TestMadelung:
         # closest Na-Cl pair is exactly 1. The cubic unit cell
         # in these units would have a length of 2.
         d["NaCl"]["symbols"] = ['Na', 'Cl']
+        d["NaCl"]["charges"] = np.array([1, -1])
         d["NaCl"]["positions"] = np.array([[0, 0, 0], [1, 0, 0]])
         d["NaCl"]["cell"] = np.array([[0, 1, 1], [1, 0, 1], [1, 1, 0]])
         d["NaCl"]["madelung"] = 1.7476
@@ -86,7 +90,8 @@ class TestMadelung:
         # is just the usual cubic cell with side length set to one.
         # The closest Cs-Cl distance is sqrt(3)/2. We thus divide
         # the Madelung constant by this value to match the reference.
-        d["CsCl"]["symbols"] = ["Cs", "Cl"]
+        d["CsCl"]["symbols"] = ["Cl", "Cs"]
+        d["CsCl"]["charges"] = np.array([1, -1])
         d["CsCl"]["positions"] = np.array([[0, 0, 0], [.5, .5, .5]])
         d["CsCl"]["cell"] = np.diag([1, 1, 1])
         d["CsCl"]["madelung"] = 2 * 1.7626 / np.sqrt(3)
@@ -104,7 +109,8 @@ class TestMadelung:
         # We thus divide the Madelung constant by this value.
         # If, on the other hand, we set the lattice constant of
         # the cubic cell equal to 1, the Zn-S distance is sqrt(3)/4.
-        d["ZnS"]["symbols"] = ["Zn", "S"]
+        d["ZnS"]["symbols"] = ["S", "Zn"]
+        d["ZnS"]["charges"] = np.array([1, -1])
         d["ZnS"]["positions"] = np.array([[0, 0, 0], [.5, .5, .5]])
         d["ZnS"]["cell"] = np.array([[0, 1, 1], [1, 0, 1], [1, 1, 0]])
         d["ZnS"]["madelung"] = 2 * 1.6381 / np.sqrt(3)
@@ -117,10 +123,15 @@ class TestMadelung:
 
         return d
 
+<<<<<<< HEAD
     @pytest.mark.parametrize("smearing", [0.1, 0.2])
     @pytest.mark.parametrize("rcut", [0.01, 0.1])
+=======
+>>>>>>> dbcbdae7c7039d2d1f1d0b9d06c3c987be730ce5
     @pytest.mark.parametrize("crystal_name", crystal_list)
-    def test_madelung(self, crystal_dictionary, smearing, rcut, crystal_name):
+    @pytest.mark.parametrize("smearing", [0.2, 0.15, 0.1])
+    @pytest.mark.parametrize("rcut", [0.2, 0.1, 0.05, 0.01])
+    def test_madelung(self, crystal_dictionary, crystal_name, smearing, rcut):
 
         frames = crystal_dictionary[crystal_name]["frames"]
         n_atoms = len(crystal_dictionary[crystal_name]["symbols"])
@@ -138,10 +149,13 @@ class TestMadelung:
         features = features.reshape(len(frames), n_atoms, *features.shape[1:])
 
         # Contribution of second atom on first atom
-        global_factor = 1 / np.sqrt(4 * np.pi / 3 * rcut**3)
-        X = -global_factor * (features[:, 0, 0, :] - features[:, 0, 1, :])
+        madelung = crystal_dictionary[crystal_name]["charges"][0] * features[:, 0, 0, :]
+        madelung += crystal_dictionary[crystal_name]["charges"][1] * features[:, 0, 1, :]
 
-        assert_allclose(X.flatten(),
+        # Normalization
+        madelung /= -np.sqrt(4 * np.pi / 3 * rcut**3)
+
+        assert_allclose(madelung.flatten(),
                         crystal_dictionary[crystal_name]["madelung"] /
                         self.scaling_factors,
                         rtol=6e-1)
