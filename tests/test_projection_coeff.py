@@ -10,6 +10,7 @@ from ase import Atoms
 from ase.build import make_supercell
 import numpy as np
 from numpy.testing import assert_allclose
+from time import time
 
 from pylode.lib.projection_coeffs import DensityProjectionCalculator
 
@@ -214,3 +215,66 @@ class TestSuperCell():
         # Compare contribution of second atom
         assert_allclose((features[:,1]).round(10),
                         (features_super[:,1::2].mean(axis=1)).round(10))
+
+class TestSlowVSFastImplementation():
+    """Class checking that the slow implementation using
+    explicit for loops (kept for better comparison with C++ versions)
+    produces the same results as the faster implementation using np.sum.
+    ."""
+
+    def test_agreement_slow_vs_fast_implementation(self):
+        # Generate a simple data set containing O2 molecules
+        # TODO: use more realistic structures,
+        # ideally, some having a single chemical species (e.g. Phosphorus),
+        # + some binary systems (e.g. water) + more complex ones (BaTiO3)
+        frames = []
+        cell = np.eye(3) * 16
+        distances = np.linspace(1.5, 2., 20)
+        for d in distances:
+            positions = [[1,1,1],[1,1,d+1]]
+            frame = Atoms('O2', positions=positions, cell=cell, pbc=True)
+            frames.append(frame)
+
+        # Define hyperparameters to run tests
+        hypers = {
+            'smearing':1.,
+            'max_angular':6,
+            'max_radial':1,
+            'cutoff_radius':5.,
+            'potential_exponent':1,
+            'radial_basis': 'monomial',
+            'compute_gradients':True,
+            'fast_implementation':False
+            }
+
+        # Run the slow implementation using manual for loops
+        # This version is kept for comparison with the C++/Rust
+        # versions in which the sums need to be looped explicitly.
+        tstart = time()
+        calculator_slow = DensityProjectionCalculator(**hypers)
+        calculator_slow.transform(frames)
+        tend = time()
+        descriptors_slow = calculator_slow.features
+        gradients_slow = calculator_slow.feature_gradients
+        dt_slow = tend - tstart
+
+        # Fast implementation ver. 1:
+        # Use np.sum for the sum over k-vectors.
+        # The gain in computational cost is especially
+        # significant if we need to sum over a large number of k-vectors,
+        # i.e. for large cells or a small smearing.
+        # For these tests, relatively reasonable values are used.
+        hypers['fast_implementation'] = True
+        tstart = time()
+        calculator_fast = DensityProjectionCalculator(**hypers)
+        calculator_fast.transform(frames)
+        tend = time()
+        descriptors_fast = calculator_fast.features
+        gradients_fast = calculator_fast.feature_gradients
+        dt_fast = tend - tstart
+
+        # Check agreement between the coefficients obtained using
+        # the two implementations
+        assert_allclose(descriptors_slow, descriptors_fast, rtol=1e-14, atol=1e-14)
+        assert_allclose(gradients_slow, gradients_fast, rtol=1e-14, atol=1e-14)
+        assert(dt_slow > 3 * dt_fast) 
