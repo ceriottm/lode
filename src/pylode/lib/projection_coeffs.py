@@ -323,6 +323,9 @@ class DensityProjectionCalculator():
 
             # If desired (True by default), remove the contribution
             # of the center atom to the density.
+            # By symmetry, this only affects the (l,m)=(0,0) components
+            # of the projection coefficients and only the chemical
+            # species channel that agrees with the center atom.
             if self.subtract_center_contribution:
                 center_contrib = self.radial_proj.center_contributions
                 frame_features[i_center, i_chem_center, :, 0] -= center_contrib
