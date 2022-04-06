@@ -7,48 +7,11 @@ Created on Wed Jan 19 13:32:41 2022
 
 import pytest
 from ase import Atoms
-from matplotlib import pyplot as plt
+from ase.build import make_supercell
 import numpy as np
 from numpy.testing import assert_allclose
 
 from pylode.lib.projection_coeffs import DensityProjectionCalculator
-
-
-def test_lode():
-    # Test 1: Convergence of norm
-    # NOTE: Currently, this is only used to check that the code actually runs
-    frames = []
-    cell = 14 * np.eye(3)
-    distances = np.linspace(2, 3, 5)
-    for d in distances:
-        positions2 = [[1, 1, 1], [1, 1, d + 1]]
-        frame = Atoms('O2', positions=positions2, cell=cell, pbc=True)
-        frames.append(frame)
-
-    ns = [2, 4, 6]
-    ls = [1, 3, 5]
-    norms = np.zeros((len(ns), len(ls)))
-    for i, n in enumerate(ns):
-        for j, l in enumerate(ls):
-            hypers = {
-                'smearing': 1.5,
-                'max_angular': l,
-                'max_radial': n,
-                'cutoff_radius': 5.,
-                'potential_exponent': 0,
-                'radial_basis': 'gto',
-                'compute_gradients': True
-            }
-            calculator = DensityProjectionCalculator(**hypers)
-            calculator.transform(frames)
-            features_temp = calculator.features
-            norms[i, j] = np.linalg.norm(features_temp[0, 0])
-
-        plt.plot(ls, norms[i], label=f'n={n}')
-
-    plt.legend()
-    plt.xlabel('angular l')
-    plt.ylabel('Norm of feature vector for one structure')
 
 
 class TestMadelung:
@@ -140,7 +103,7 @@ class TestMadelung:
         # In these units, the closest Zn-S distance is sqrt(3)/2.
         # We thus divide the Madelung constant by this value.
         # If, on the other hand, we set the lattice constant of
-        # the cubic cell equal to 1, the Zn-S distance is sqrt(3)/4. 
+        # the cubic cell equal to 1, the Zn-S distance is sqrt(3)/4.
         d["ZnS"]["symbols"] = ["Zn", "S"]
         d["ZnS"]["positions"] = np.array([[0, 0, 0], [.5, .5, .5]])
         d["ZnS"]["cell"] = np.array([[0, 1, 1], [1, 0, 1], [1, 1, 0]])
@@ -182,3 +145,63 @@ class TestMadelung:
                         crystal_dictionary[crystal_name]["madelung"] /
                         self.scaling_factors,
                         rtol=6e-1)
+
+
+class TestSuperCell():
+    """Class for testing invariance under cell replications."""
+
+    @pytest.fixture
+    def frames(self):
+        """Frames for two oxygen atoms at different positions"""
+        frame_list = []
+        cell = 5 * np.eye(3)
+        distances = np.linspace(1, 2, 5)
+        positions = np.zeros([2, 3])
+        for d in distances:
+            positions[1, 2] = d
+            frame = Atoms('NaCl', positions=positions, cell=cell, pbc=True)
+            frame_list.append(frame)
+        return frame_list
+
+    def test_supercell(self, frames):
+        """Test if features are invariant by cell replications.
+
+        The original unit cell is replicated two times.
+        """
+        n_atoms = len(frames[0].get_atomic_numbers())
+
+        hypers = dict(
+            max_radial=2,
+            max_angular=2,
+            cutoff_radius=1,
+            smearing=2,
+            radial_basis='GTO')
+
+        # Original cell
+        calculator = DensityProjectionCalculator(**hypers)
+        calculator.transform(frames, show_progress=True)
+        features = calculator.features.reshape(
+            len(frames),
+            n_atoms,
+            *calculator.features.shape[1:])
+
+        # Super cell
+        n_replica_per_dim = 2
+        n_replica = n_replica_per_dim**3
+
+        frames_super = [make_supercell(f, n_replica_per_dim * np.eye(3)) for f in frames]
+        calculator_super = DensityProjectionCalculator(**hypers)
+        calculator_super.transform(frames_super, show_progress=True)
+        features_super = calculator_super.features.reshape(
+            len(frames),
+            n_replica * n_atoms,
+            *calculator_super.features.shape[1:])
+
+        # Compare contribution of first atom
+        # I don't know why we have to round here...
+        assert_allclose((features[:,0]).round(10),
+                        (features_super[:,::2].mean(axis=1)).round(10))
+
+        # Compare contribution of second atom
+        assert_allclose((features[:,1]).round(10),
+                        (features_super[:,1::2].mean(axis=1)).round(10))
