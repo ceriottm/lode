@@ -161,14 +161,16 @@ class DensityProjectionCalculator():
         """
         self.frames = frames
 
-        # Construct species dict
+
+        species = set()
+        for frame in frames:
+            for atom in frame:
+               species.add(atom.number)
+        species = sorted(species)
         self.species_dict = {}
         for frame in frames:
             #Get atomic species in dataset
-           self.species_dict.update({atom.symbol: atom.number for atom in frame})
-
-        # Use a dens number for indices .i.e 11, 17 -> 0, 1
-        self.species_dict = {symbol: i for i, symbol in enumerate(self.species_dict)}
+           self.species_dict.update({atom.symbol: species.index(atom.number) for atom in frame})
 
         # Define variables determining size of feature vector coming from frames
         self.num_atoms_per_frame = np.array([len(frame) for frame in frames])
@@ -363,14 +365,14 @@ class DensityProjectionCalculator():
                     # Update gradients
                     if self.compute_gradients:
                         # Phase factors depending on parity of l for gradients
-                        for angular_l in range(lmax+1):
+                        for angular_l in range(lmax + 1):
                             if angular_l % 2 == 0:
                                 struc_factor_grad[l**2:(l+1)**2] = angular_phases[l] * fourier_imag
                             else:
                                 struc_factor_grad[l**2:(l+1)**2] = angular_phases[l] * fourier_real
 
                         # Update x,y,z components
-                        frame_gradients[i_neigh + i_center * num_atoms, :, i_chem_neigh] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[0]
+                        frame_gradients[i_neigh + i_center * num_atoms, 0, i_chem_neigh] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[0]
                         frame_gradients[i_neigh + i_center * num_atoms, 1, i_chem_neigh] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[1]
                         frame_gradients[i_neigh + i_center * num_atoms, 2, i_chem_neigh] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[2]
 
@@ -392,18 +394,12 @@ class DensityProjectionCalculator():
         """
 
         representation_info = []
-        i_center = 0
         for i_frame, frame in enumerate(self.frames):
             for i_center, center_atom in enumerate(frame):
-                representation_info_frame = np.zeros(3)
-                representation_info_frame[0] = i_frame
-                representation_info_frame[1] = i_center
-                representation_info_frame[2] = center_atom.number
-                i_center += 1
+                representation_info.append(
+                    (i_frame, i_center, center_atom.number))
 
-                representation_info.append(representation_info_frame)
-
-        return np.array(representation_info)
+        return np.array(representation_info, dtype=np.int32)
 
     @property
     def gradients_info(self):
@@ -421,9 +417,6 @@ class DensityProjectionCalculator():
         gradients_info = []
         for i_frame, frame in enumerate(self.frames):
             num_atoms = len(frame)
-            iterator_species = np.zeros(num_atoms, dtype=int)
-            for i, symbol in enumerate(frame.get_chemical_symbols()):
-                iterator_species[i] = self.species_dict[symbol]
 
             for i_center in range(num_atoms):
                 center_atom = frame[i_center]
@@ -431,12 +424,9 @@ class DensityProjectionCalculator():
                 for i_neigh in range(num_atoms):
                     neigh_atom = frame[i_neigh]
 
-                    gradients_info_frame = np.zeros(5)
-                    gradients_info_frame[0] = i_frame
-                    gradients_info_frame[1] = i_center
-                    gradients_info_frame[2] = i_neigh
-                    gradients_info_frame[3] = center_atom.number
-                    gradients_info_frame[4] = neigh_atom.number
+                    gradients_info_frame = (i_frame, i_center, i_neigh,
+                                            center_atom.number,
+                                            neigh_atom.number)
 
                     gradients_info.append(gradients_info_frame)
 
