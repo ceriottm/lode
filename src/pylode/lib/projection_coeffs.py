@@ -93,7 +93,7 @@ class DensityProjectionCalculator():
         in librascal.
 
     representation_info : array
-        Stuff for interacting to interact with atomistic-ml-storage. 
+        Stuff for interacting to interact with atomistic-ml-storage.
     """
     def __init__(self,
                  max_radial,
@@ -125,7 +125,7 @@ class DensityProjectionCalculator():
         if self.radial_basis == "monomial" and self.max_radial != 1:
             raise ValueError("For monomial basis only `max_radial=1` "
                              "is allowed.")
-        
+
         # Auxilary quantity: the actual number of features is this number
         # times the number of chemical species
         self.num_features_bare = self.max_radial * (self.max_angular + 1)**2
@@ -159,26 +159,27 @@ class DensityProjectionCalculator():
         None, but stores the projection coefficients and (if desired)
         gradients as arrays as `features` and `features_gradients`.
         """
+        self.frames = frames
 
         # Construct species dict
-        species_dict = {}
+        self.species_dict = {}
         for frame in frames:
             #Get atomic species in dataset
-            species_dict.update({atom.symbol: atom.number for atom in frame})
+           self.species_dict.update({atom.symbol: atom.number for atom in frame})
 
         # Use a dens number for indices .i.e 11, 17 -> 0, 1
-        species_dict = {symbol: i for i, symbol in enumerate(species_dict)}
+        self.species_dict = {symbol: i for i, symbol in enumerate(self.species_dict)}
 
         # Define variables determining size of feature vector coming from frames
-        num_atoms_per_frame = np.array([len(frame) for frame in frames])
-        num_atoms_total = np.sum(num_atoms_per_frame)
-        num_chem_species = len(species_dict)
+        self.num_atoms_per_frame = np.array([len(frame) for frame in frames])
+        num_atoms_total = np.sum(self.num_atoms_per_frame)
+        num_chem_species = len(self.species_dict)
 
         # Initialize arrays in which to store all features
         self.features = np.zeros((num_atoms_total, num_chem_species,
                                   self.max_radial, (self.max_angular+1)**2))
         if self.compute_gradients:
-            num_gradients = np.sum(num_atoms_per_frame**2)
+            num_gradients = np.sum(self.num_atoms_per_frame**2)
             self.feature_gradients = np.zeros((num_gradients, 3, num_chem_species,
                                                self.max_radial, (self.max_angular+1)**2))
 
@@ -187,41 +188,28 @@ class DensityProjectionCalculator():
         gradient_index = 0
 
         if show_progress:
-            frame_generator = tqdm(frames)
+            frame_generator = tqdm(self.frames)
         else:
-            frame_generator = frames
+            frame_generator = self.frames
 
-        self.representation_info = np.zeros([np.sum(num_atoms_per_frame), 3])
-
-        index = 0
         for i_frame, frame in enumerate(frame_generator):
 
-            number_of_atoms = num_atoms_per_frame[i_frame]
+            number_of_atoms = self.num_atoms_per_frame[i_frame]
+            results = self._transform_single_frame(frame)
 
-            for i_atom, atom in enumerate(frame):
-                self.representation_info[index, 0] = i_frame
-                self.representation_info[index, 1] = i_atom
-                self.representation_info[index, 2] = atom.number
-                index += 1
-
-            results = self._transform_single_frame(frame, species_dict)
-
-            # Returned values are only the features
-            if not self.compute_gradients:
-                self.features[current_index:current_index+number_of_atoms] += results
             # Returned values are features + gradients
-            else:
-                self.features[current_index:current_index+number_of_atoms] += results[0]
+            if self.compute_gradients:
+                features = results[0]
                 self.feature_gradients[gradient_index:gradient_index+number_of_atoms**2] += results[1]
+            # Returned values are only the features
+            else:
+                features = results
 
+            self.features[current_index:current_index+number_of_atoms] += features
             current_index += number_of_atoms
             gradient_index += number_of_atoms**2
 
-        if self.compute_gradients:
-            #TODO: fill with logic
-            self.gradients_info = np.zeros([len(self.feature_gradients),5])
-
-    def _transform_single_frame(self, frame, species_dict):
+    def _transform_single_frame(self, frame):
         """
         Compute features for single frame and return to the transform()
         method which loops over all structures to obtain the complete
@@ -232,10 +220,10 @@ class DensityProjectionCalculator():
         nmax = self.max_radial
         num_lm = (lmax+1)**2
         num_atoms = len(frame)
-        num_chem_species = len(species_dict)
+        num_chem_species = len(self.species_dict)
         iterator_species = np.zeros(num_atoms, dtype=int)
         for i, symbol in enumerate(frame.get_chemical_symbols()):
-            iterator_species[i] = species_dict[symbol]
+            iterator_species[i] = self.species_dict[symbol]
 
         # Initialize arrays in which to store all features
         frame_features = np.zeros((num_atoms, num_chem_species,
@@ -390,3 +378,66 @@ class DensityProjectionCalculator():
             return frame_features, frame_gradients
         else:
             return frame_features
+
+    @property
+    def representation_info(self):
+        """Metadata about features. Same as in librascal.
+
+        Returns
+        -------
+        np.array of size (n_atoms, 3)
+            The array has as many rows as the number of representations
+            and they correspond to the index of the structure, the central atom
+            and its atomic species.
+        """
+
+        representation_info = []
+        i_center = 0
+        for i_frame, frame in enumerate(self.frames):
+            for i_center, center_atom in enumerate(frame):
+                representation_info_frame = np.zeros(3)
+                representation_info_frame[0] = i_frame
+                representation_info_frame[1] = i_center
+                representation_info_frame[2] = center_atom.number
+                i_center += 1
+
+                representation_info.append(representation_info_frame)
+
+        return np.array(representation_info)
+
+    @property
+    def gradients_info(self):
+        """Metadata about gradients. Same as in librascal.
+
+        Returns
+        -------
+        np.array of size (n_frames * (n_neighbors + n_atoms), 5)
+
+            The array has as many rows as as the number gradients and each
+            columns correspond to the index of the atomic structure,
+            central atom, the neighbor atom and their atomic species.
+        """
+
+        gradients_info = []
+        for i_frame, frame in enumerate(self.frames):
+            num_atoms = len(frame)
+            iterator_species = np.zeros(num_atoms, dtype=int)
+            for i, symbol in enumerate(frame.get_chemical_symbols()):
+                iterator_species[i] = self.species_dict[symbol]
+
+            for i_center in range(num_atoms):
+                center_atom = frame[i_center]
+
+                for i_neigh in range(num_atoms):
+                    neigh_atom = frame[i_neigh]
+
+                    gradients_info_frame = np.zeros(5)
+                    gradients_info_frame[0] = i_frame
+                    gradients_info_frame[1] = i_center
+                    gradients_info_frame[2] = i_neigh
+                    gradients_info_frame[3] = center_atom.number
+                    gradients_info_frame[4] = neigh_atom.number
+
+                    gradients_info.append(gradients_info_frame)
+
+        return np.array(gradients_info)
