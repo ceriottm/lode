@@ -123,11 +123,6 @@ class TestMadelung:
 
         return d
 
-<<<<<<< HEAD
-    @pytest.mark.parametrize("smearing", [0.1, 0.2])
-    @pytest.mark.parametrize("rcut", [0.01, 0.1])
-=======
->>>>>>> dbcbdae7c7039d2d1f1d0b9d06c3c987be730ce5
     @pytest.mark.parametrize("crystal_name", crystal_list)
     @pytest.mark.parametrize("smearing", [0.2, 0.15, 0.1])
     @pytest.mark.parametrize("rcut", [0.2, 0.1, 0.05, 0.01])
