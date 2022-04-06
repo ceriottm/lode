@@ -103,7 +103,8 @@ class DensityProjectionCalculator():
                  radial_basis,
                  compute_gradients=False,
                  potential_exponent=1,
-                 subtract_center_contribution=False):
+                 subtract_center_contribution=False,
+                 fast_implementation=False):
         # Store the input variables
         self.max_radial = max_radial
         self.max_angular = max_angular
@@ -113,6 +114,7 @@ class DensityProjectionCalculator():
         self.potential_exponent = potential_exponent
         self.compute_gradients = compute_gradients
         self.subtract_center_contribution = subtract_center_contribution
+        self.fast_implementation = fast_implementation
 
         # Make sure that the provided parameters are consistent
         if self.potential_exponent not in [0, 1]:
@@ -279,10 +281,12 @@ class DensityProjectionCalculator():
         # Combine all these factors into single array
         # k_dep_factor is the combined k-dependent part
         k_dep_factor = np.zeros((num_kvecs, nmax, num_lm))
+        k_dep_factor_reordered = np.zeros((nmax, num_lm, num_kvecs))
         for l in range(lmax+1):
             for n in range(nmax):
                 f = np.atleast_2d(G_k * I_nl[:,n,l]).T * Y_lm[:, l**2:(l+1)**2]
                 k_dep_factor[:, n, l**2:(l+1)**2] = f
+                k_dep_factor_reordered[n, l**2:(l+1)**2, :] = f.T
 
         ###
         # Step 2: Structure factors:
@@ -307,6 +311,26 @@ class DensityProjectionCalculator():
                 strucfac_real[:, i, j] = cosines[:,i] * cosines[:,j] + sines[:,i] * sines[:,j]
                 strucfac_imag[:, i, j] = cosines[:,i] * sines[:,j] - sines[:,i] * cosines[:,j]
 
+        ###
+        #
+        # For faster implementation using numpy:
+        # Precompute all sums over k using np.sum
+        #
+        ###
+        if self.fast_implementation:
+            # Summed versions over k vectors
+            strucfac_real_sum = np.sum(strucfac_real, axis=0)
+            strucfac_imag_sum = np.sum(strucfac_imag, axis=0)
+            k_dep_factor_sum = np.sum(k_dep_factor, axis=0)
+            
+            if self.compute_gradients:
+                kx = kvectors[:,0]
+                ky = kvectors[:,1]
+                kz = kvectors[:,2]
+                k_dep_factor_kx_sum = np.sum(k_dep_factor_reordered * kx, axis=2)
+                k_dep_factor_ky_sum = np.sum(k_dep_factor_reordered * ky, axis=2)
+                k_dep_factor_kz_sum = np.sum(k_dep_factor_reordered * kz, axis=2)
+        
         ###
         # Step 3: Main loop:
         #   Iterate over all atoms to evaluate the projection coefficients
@@ -358,19 +382,7 @@ class DensityProjectionCalculator():
                         else:
                             struc_factor[l**2:(l+1)**2] = angular_phases[l] * fourier_imag
 
-                    # # Update features
-                    # logger.debug(
-                    #     "Current features =\n"
-                    #     f"{(frame_features[i_center, i_chem_neigh].T).round(8)}")
-                    # logger.debug(
-                    #     "Additional term =\n"
-                    #     f"{(global_factor * struc_factor * k_dep_factor[ik]).round(8).T}")
-
                     frame_features[i_center, i_chem_neigh] += 2 * global_factor * struc_factor * k_dep_factor[ik]
-
-                    # logger.debug(
-                    #     "New features =\n"
-                    #     f"{(frame_features[i_center, i_chem_neigh].T).round(8)}")
 
                     # Update gradients
                     if self.compute_gradients:
