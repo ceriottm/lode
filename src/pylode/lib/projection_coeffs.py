@@ -8,6 +8,7 @@ angular channel l=0,1,2,...,lmax is supported.
 """
 
 import logging
+from re import I
 
 # Generic imports
 import numpy as np
@@ -104,7 +105,7 @@ class DensityProjectionCalculator():
                  compute_gradients=False,
                  potential_exponent=1,
                  subtract_center_contribution=False,
-                 fast_implementation=False):
+                 fast_implementation=True):
         # Store the input variables
         self.max_radial = max_radial
         self.max_angular = max_angular
@@ -310,34 +311,21 @@ class DensityProjectionCalculator():
             for j in range(num_atoms):
                 strucfac_real[:, i, j] = cosines[:,i] * cosines[:,j] + sines[:,i] * sines[:,j]
                 strucfac_imag[:, i, j] = cosines[:,i] * sines[:,j] - sines[:,i] * cosines[:,j]
-
-        ###
-        #
-        # For faster implementation using numpy:
-        # Precompute all sums over k using np.sum
-        #
-        ###
-        if self.fast_implementation:
-            # Summed versions over k vectors
-            strucfac_real_sum = np.sum(strucfac_real, axis=0)
-            strucfac_imag_sum = np.sum(strucfac_imag, axis=0)
-            k_dep_factor_sum = np.sum(k_dep_factor, axis=0)
-            
-            if self.compute_gradients:
-                kx = kvectors[:,0]
-                ky = kvectors[:,1]
-                kz = kvectors[:,2]
-                k_dep_factor_kx_sum = np.sum(k_dep_factor_reordered * kx, axis=2)
-                k_dep_factor_ky_sum = np.sum(k_dep_factor_reordered * ky, axis=2)
-                k_dep_factor_kz_sum = np.sum(k_dep_factor_reordered * kz, axis=2)
-        
+ 
         ###
         # Step 3: Main loop:
         #   Iterate over all atoms to evaluate the projection coefficients
         ###
         global_factor = 4 * np.pi / frame.get_volume()
-        struc_factor = np.zeros((lmax+1)**2)
-        struc_factor_grad = np.zeros((lmax+1)**2)
+        struc_factor = np.zeros(num_lm)
+        struc_factor_grad = np.zeros(num_lm)
+        struc_factor_all = np.zeros((num_lm, num_kvecs))
+        struc_factor_grad_all = np.zeros((num_lm, num_kvecs))
+
+        if self.compute_gradients and self.fast_implementation:
+            kx = kvectors[:,0]
+            ky = kvectors[:,1]
+            kz = kvectors[:,2]
 
         # Loop over center atom
         for i_center in range(num_atoms):
@@ -370,33 +358,68 @@ class DensityProjectionCalculator():
                     I_nl_zero /= np.sqrt(4 * np.pi)
                     frame_features[i_center, i_chem_neigh, :, 0] += I_nl_zero[:,0] * global_factor
 
-                # Loop over all k-vectors
-                for ik, kvector in enumerate(kvectors):
-                    fourier_real = strucfac_real[ik, i_center, i_neigh]
-                    fourier_imag = strucfac_imag[ik, i_center, i_neigh]
+                # Slow implementation using manual loops:
+                # this version is kept for better comparison with the C++ ver.
+                if not self.fast_implementation:
+                    # Loop over all k-vectors
+                    for ik, kvector in enumerate(kvectors):
+                        fourier_real = strucfac_real[ik, i_center, i_neigh]
+                        fourier_imag = strucfac_imag[ik, i_center, i_neigh]
+    
+                        # Phase factors depending on parity of l
+                        for l in range(lmax+1):
+                            if l % 2 == 0:
+                                struc_factor[l**2:(l+1)**2] = angular_phases[l] * fourier_real
+                            else:
+                                struc_factor[l**2:(l+1)**2] = angular_phases[l] * fourier_imag
+    
+                        frame_features[i_center, i_chem_neigh] += 2 * global_factor * struc_factor * k_dep_factor[ik]
+    
+                        # Update gradients
+                        if self.compute_gradients:
+                            # Phase factors depending on parity of l for gradients
+                            for angular_l in range(lmax+1):
+                                if angular_l % 2 == 0:
+                                    struc_factor_grad[l**2:(l+1)**2] = angular_phases[l] * fourier_imag
+                                else:
+                                    struc_factor_grad[l**2:(l+1)**2] = angular_phases[l] * fourier_real
+    
+                            # Update x,y,z components
+                            frame_gradients[i_neigh + i_center * num_atoms, 0, i_chem_neigh] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[0]
+                            frame_gradients[i_neigh + i_center * num_atoms, 1, i_chem_neigh] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[1]
+                            frame_gradients[i_neigh + i_center * num_atoms, 2, i_chem_neigh] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[2]
+                    
+                else: # use fast implementation
+                    fourier_real = strucfac_real[:, i_center, i_neigh]
+                    fourier_imag = strucfac_imag[:, i_center, i_neigh]
 
                     # Phase factors depending on parity of l
                     for l in range(lmax+1):
                         if l % 2 == 0:
-                            struc_factor[l**2:(l+1)**2] = angular_phases[l] * fourier_real
+                            struc_factor_all[l**2:(l+1)**2] = angular_phases[l] * fourier_real
                         else:
-                            struc_factor[l**2:(l+1)**2] = angular_phases[l] * fourier_imag
+                            struc_factor_all[l**2:(l+1)**2] = angular_phases[l] * fourier_imag
 
-                    frame_features[i_center, i_chem_neigh] += 2 * global_factor * struc_factor * k_dep_factor[ik]
-
+                    contr = np.sum(k_dep_factor_reordered * struc_factor_all, axis=2)
+                    frame_features[i_center, i_chem_neigh] += 2 * global_factor * contr
+                    
                     # Update gradients
                     if self.compute_gradients:
                         # Phase factors depending on parity of l for gradients
-                        for angular_l in range(lmax + 1):
+                        for angular_l in range(lmax+1):
                             if angular_l % 2 == 0:
-                                struc_factor_grad[l**2:(l+1)**2] = angular_phases[l] * fourier_imag
+                                struc_factor_grad_all[l**2:(l+1)**2] = angular_phases[l] * fourier_imag
                             else:
-                                struc_factor_grad[l**2:(l+1)**2] = angular_phases[l] * fourier_real
+                                struc_factor_grad_all[l**2:(l+1)**2] = angular_phases[l] * fourier_real
 
                         # Update x,y,z components
-                        frame_gradients[i_neigh + i_center * num_atoms, 0, i_chem_neigh] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[0]
-                        frame_gradients[i_neigh + i_center * num_atoms, 1, i_chem_neigh] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[1]
-                        frame_gradients[i_neigh + i_center * num_atoms, 2, i_chem_neigh] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[2]
+                        gradx = np.sum(k_dep_factor_reordered * struc_factor_grad_all * kx, axis=2)
+                        grady = np.sum(k_dep_factor_reordered * struc_factor_grad_all * ky, axis=2)
+                        gradz = np.sum(k_dep_factor_reordered * struc_factor_grad_all * kz, axis=2)
+                        i_grad = i_neigh + i_center * num_atoms
+                        frame_gradients[i_grad, 0, i_chem_neigh] += global_factor * gradx
+                        frame_gradients[i_grad, 1, i_chem_neigh] += global_factor * grady 
+                        frame_gradients[i_grad, 2, i_chem_neigh] += global_factor * gradz
 
         if self.compute_gradients:
             return frame_features, frame_gradients
