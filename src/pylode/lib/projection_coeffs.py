@@ -321,20 +321,27 @@ class DensityProjectionCalculator():
             # index describing chemical species of center atom
             i_chem_center = iterator_species[i_center]
 
+            # If desired (True by default), remove the contribution
+            # of the center atom to the density.
+            if self.subtract_center_contribution:
+                center_contrib = self.radial_proj.center_contributions
+                frame_features[i_center, i_chem_center, :, 0] -= center_contrib
+
             # Loop over all atoms in the structure (including central atom)
             for i_neigh in range(num_atoms):
 
                 # index describing chemical species of neighbor
                 i_chem_neigh = iterator_species[i_neigh]
 
+                # For Gaussian potentials, the Fourier transform
+                # at k=0 is finite and contributes to the coefficients
+                # (l,m)=(0,0). This is treated separately from the
+                # remaining sum over k-points since it is only
+                # used for specific densities and only affects (l,m)=(0,0).
                 if self.potential_exponent == 0: # add constant term
                     I_nl_zero = self.radial_proj.radial_spline(0)
                     I_nl_zero /= np.sqrt(4 * np.pi)
                     frame_features[i_center, i_chem_neigh, :, 0] += I_nl_zero[:,0] * global_factor
-
-                if self.subtract_center_contribution and i_chem_center == i_chem_neigh:
-                    center_contrib = self.radial_proj.center_contributions
-                    frame_features[i_center, i_chem_neigh, :, 0] -= center_contrib
 
                 # Loop over all k-vectors
                 for ik, kvector in enumerate(kvectors):
