@@ -4,16 +4,20 @@ Created on Wed Jan 19 13:32:41 2022
 
 @author: kevin
 """
-
-import pytest
-from ase import Atoms
-from ase.io import read
-from ase.build import make_supercell
-import numpy as np
-from numpy.testing import assert_allclose
+import os
 from time import time
 
+import numpy as np
+import pytest
+from ase import Atoms
+from ase.build import make_supercell
+from ase.io import read
+from numpy.testing import assert_allclose
+
 from pylode.lib.projection_coeffs import DensityProjectionCalculator
+
+
+REF_STRUCTS = os.path.join(os.path.dirname(__file__), 'reference_structures')
 
 
 class TestCoulombRandomStructures():
@@ -28,11 +32,9 @@ class TestCoulombRandomStructures():
         # Get the predefined frame with the
         # Coulomb energy and forces computed from an
         # Ewald summation code
-        frames = read("test/reference_structures/coulomb_test_frames.xyz", ":")
-        energies_target = np.array([-1.3, -2.1])
-        forces_target = np.array([
-            [1,2,3],[4,5,6]
-        ])
+        frames = read(os.path.join(REF_STRUCTS, "coulomb_test_frames.xyz"), ":")
+        energies_target = np.array([frame.info["energy"] for frame in frames])
+        forces_target = np.array([frame.arrays["forces"] for frame in frames])
 
         # Define hyperparameters to run tests
         rcut = 0.1
