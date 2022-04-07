@@ -16,6 +16,56 @@ from time import time
 from pylode.lib.projection_coeffs import DensityProjectionCalculator
 
 
+class TestCoulombRandomStructures():
+    """
+    Class for checking the agreement of both the potential and forces
+    with exact 1/r potentials on random structures.
+    This test complements the Madelung tests by using more complicated
+    structures which also require forces.
+    """
+
+    def test_coulomb_random_structure(self):
+        # Get the predefined frame with the
+        # Coulomb energy and forces computed from an
+        # Ewald summation code
+        frames = read("test/reference_structures/coulomb_test_frames.xyz", ":")
+        energies_target = np.array([-1.3, -2.1])
+        forces_target = np.array([
+            [1,2,3],[4,5,6]
+        ])
+
+        # Define hyperparameters to run tests
+        rcut = 0.1
+        hypers = {
+            'smearing':.5,
+            'max_angular':1,
+            'max_radial':1,
+            'cutoff_radius':rcut,
+            'potential_exponent':1,
+            'radial_basis': 'monomial',
+            'compute_gradients':True,
+            'fast_implementation':True
+            }
+
+        # Run the slow implementation using manual for loops
+        # This version is kept for comparison with the C++/Rust
+        # versions in which the sums need to be looped explicitly.
+        calculator = DensityProjectionCalculator(**hypers)
+        calculator.transform(frames)
+        descriptors = calculator.features
+        gradients = calculator.feature_gradients
+
+        # Prefactor used to convert into standard units
+        # assuming that the cutoff is sufficiently small
+        prefac = np.sqrt(4 * np.pi / 3 * rcut**3)
+
+        # Compute the analytically expected expressions for the
+        # energies and forces
+        # TODO:
+        energies_lode = energies_target
+        forces_lode = forces_target
+        assert_allclose(energies_target, energies_lode)
+        assert_allclose(forces_target, forces_lode)
 class TestMadelung:
     """Test LODE feature against Madelung constant of different crystals."""
 
@@ -279,54 +329,3 @@ class TestSlowVSFastImplementation():
         assert_allclose(descriptors_slow, descriptors_fast, rtol=1e-14, atol=1e-14)
         assert_allclose(gradients_slow, gradients_fast, rtol=1e-14, atol=1e-14)
         assert(dt_slow > 3 * dt_fast)
-
-class TestCoulombRandomStructures():
-    """
-    Class for checking the agreement of both the potential and forces
-    with exact 1/r potentials on random structures.
-    This test complements the Madelung tests by using more complicated
-    structures which also require forces.
-    """
-
-    def test_coulomb_random_structure(self):
-        # Get the predefined frame with the
-        # Coulomb energy and forces computed from an
-        # Ewald summation code
-        frames = read('reference_structures/coulomb_test_frames.xyz', ":")
-        energies_target = np.array([-1.3, -2.1])
-        forces_target = np.array([
-            [1,2,3],[4,5,6]
-        ])
-
-        # Define hyperparameters to run tests
-        rcut = 0.1
-        hypers = {
-            'smearing':.5,
-            'max_angular':1,
-            'max_radial':1,
-            'cutoff_radius':rcut,
-            'potential_exponent':1,
-            'radial_basis': 'monomial',
-            'compute_gradients':True,
-            'fast_implementation':True
-            }
-
-        # Run the slow implementation using manual for loops
-        # This version is kept for comparison with the C++/Rust
-        # versions in which the sums need to be looped explicitly.
-        calculator = DensityProjectionCalculator(**hypers)
-        calculator.transform(frames)
-        descriptors = calculator.features
-        gradients = calculator.feature_gradients
-
-        # Prefactor used to convert into standard units
-        # assuming that the cutoff is sufficiently small
-        prefac = np.sqrt(4 * np.pi / 3 * rcut**3)
-
-        # Compute the analytically expected expressions for the
-        # energies and forces
-        # TODO:
-        energies_lode = energies_target
-        forces_lode = forces_target
-        assert_allclose(energies_target, energies_lode)
-        assert_allclose(forces_target, forces_lode)
