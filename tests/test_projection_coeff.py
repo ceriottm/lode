@@ -292,9 +292,7 @@ class TestCoulombRandomStructures():
         # Get the predefined frame with the
         # Coulomb energy and forces computed from an
         # Ewald summation code
-        #frames = read('filename.xyz', ":")
-        frames = [Atoms('O2', positions=[[0,0,0],[0,0,1]], cell=np.eye(3)*6,
-                       pbc=True)] # to be replaced by proper random structure
+        frames = read('reference_structures/coulomb_test_frames.xyz', ":")
         energies_target = np.array([-1.3, -2.1])
         forces_target = np.array([
             [1,2,3],[4,5,6]
