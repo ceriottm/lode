@@ -8,11 +8,8 @@ angular channel l=0,1,2,...,lmax is supported.
 """
 
 import logging
-from re import I
 
-# Generic imports
 import numpy as np
-from scipy.special import erf
 
 try:
     from tqdm import tqdm

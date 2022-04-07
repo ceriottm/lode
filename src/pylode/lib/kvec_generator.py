@@ -12,6 +12,7 @@ are essentially identical.
 
 import numpy as np
 
+
 class KvectorGenerator():
     """
     Class for generating k-vectors.

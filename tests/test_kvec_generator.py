@@ -8,9 +8,9 @@ Created on Wed Jan 19 13:32:41 2022
 import numpy as np
 import pytest
 import scipy
+from numpy.testing import assert_allclose
 
 from pylode.lib.kvec_generator import KvectorGenerator
-from numpy.testing import assert_allclose
 
 np.random.seed(12419)
 

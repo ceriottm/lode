@@ -8,6 +8,7 @@ Generate modules to evaluate the spherical harmonics needed for LODE.
 import numpy as np
 from scipy.special import sph_harm
 
+
 def convert_to_spherical(vectors):
     """
     Convert an array of 3D vectors into an array containing the spherical

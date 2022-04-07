@@ -11,6 +11,7 @@ from ase.io import read
 
 from pylode import DensityProjectionCalculator as LODE
 
+
 def lode_get_features(frames, show_progress=False, **hypers):
     """Calculate LODE feature array from an atomic dataset.
 

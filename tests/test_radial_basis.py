@@ -7,9 +7,10 @@ Created on Wed Jan 19 13:32:41 2022
 
 import numpy as np
 from numpy.testing import assert_allclose
-from scipy.special import gamma, hyp1f1, erf, hyp2f1
 from scipy.integrate import quad
-from pylode.lib.radial_basis import innerprod, RadialBasis
+from scipy.special import erf, gamma, hyp1f1, hyp2f1
+
+from pylode.lib.radial_basis import RadialBasis, innerprod
 
 
 class TestRadialProjection:

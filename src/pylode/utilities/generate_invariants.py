@@ -8,6 +8,7 @@ generate multiscale descriptors.
 """
 import numpy as np
 
+
 def generate_degree2_invariants(coeffs):
     """
     Generate degree 2 invariants from density projection coefficients.

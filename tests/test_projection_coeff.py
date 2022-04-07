@@ -16,7 +16,6 @@ from numpy.testing import assert_allclose
 
 from pylode.lib.projection_coeffs import DensityProjectionCalculator
 
-
 REF_STRUCTS = os.path.join(os.path.dirname(__file__), 'reference_structures')
 
 
