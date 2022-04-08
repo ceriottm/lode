@@ -4,16 +4,20 @@ Created on Wed Jan 19 13:32:41 2022
 
 @author: kevin
 """
-import os
-from time import time
 
+# Generic imports
+import os
 import numpy as np
 import pytest
+from numpy.testing import assert_allclose
+from time import time
+
+# ASE imports
 from ase import Atoms
 from ase.build import make_supercell
 from ase.io import read
-from numpy.testing import assert_allclose
 
+# Library specific imports
 from pylode.lib.projection_coeffs import DensityProjectionCalculator
 
 REF_STRUCTS = os.path.join(os.path.dirname(__file__), 'reference_structures')
@@ -62,11 +66,57 @@ class TestCoulombRandomStructures():
 
         # Compute the analytically expected expressions for the
         # energies and forces
-        # TODO:
+        energy = np.zeros(3)
+        forces = np.zeros((3,8,3))
+        for iframe in range(len(frames)):
+            # Define indices to specify blocks
+            i1 = 8 * iframe # start of Na block
+            i2 = 8 * iframe + 4 # end of Na / start of Cl block
+            i3 = 8 * iframe + 8 # end of Cl block
+
+            # Add contributions in the following order:
+            # Na-Na, Na-Cl, Cl-Na, Cl-Cl contributions
+            energy[iframe] += np.sum(descriptors[i1:i2, 0, 0, 0])
+            energy[iframe] -= np.sum(descriptors[i1:i2, 1, 0, 0])
+            energy[iframe] -= np.sum(descriptors[i2:i3, 0, 0, 0])
+            energy[iframe] += np.sum(descriptors[i2:i3, 1, 0, 0])
+
+            # For the gradients, the l=1 components of the projection
+            # coefficients provide us with the dipole moment of the
+            # exterior charges, which provides the force on the center
+            # atom. Note that the real spherical harmonics are ordered
+            # such that m=(-1,0,1) is mapped to (y,z,x).
+            # x-component of forces
+            forces[iframe, :, 0] += descriptors[i1:i3, 0, 0, 3]
+            forces[iframe, :, 0] -= descriptors[i1:i3, 1, 0, 3]
+
+            # y-component of forces
+            forces[iframe, :, 1] += descriptors[i1:i3, 0, 0, 1]
+            forces[iframe, :, 1] -= descriptors[i1:i3, 1, 0, 1]
+            
+            # z-component of forces
+            forces[iframe, :, 2] += descriptors[i1:i3, 0, 0, 2]
+            forces[iframe, :, 2] -= descriptors[i1:i3, 1, 0, 2]
+
+            # flip sign for Cl atoms
+            forces[iframe, 4:] *= -1
+
+        # Convert the energies and forces to descired units
+        energy /= prefac
+        forces /= prefac
+        forces *= np.sqrt(4 * np.pi / 3) # prefactor in spherical harmonic
+
+        # TODO: remove overcounting of i-j pairs within unit cell
+
+        # Make sure that the values agree
+        # TODO: unit conversions and prefactors of forces
+        # For now, use temporary test that always passes
         energies_lode = energies_target
         forces_lode = forces_target
         assert_allclose(energies_target, energies_lode)
         assert_allclose(forces_target, forces_lode)
+
+
 class TestMadelung:
     """Test LODE feature against Madelung constant of different crystals."""
 
@@ -227,7 +277,6 @@ class TestSuperCell():
 
     def test_supercell(self, frames):
         """Test if features are invariant by cell replications.
-
         The original unit cell is replicated two times.
         """
         n_atoms = len(frames[0].get_atomic_numbers())
@@ -267,6 +316,7 @@ class TestSuperCell():
         # Compare contribution of second atom
         assert_allclose((features[:,1]).round(10),
                         (features_super[:,1::2].mean(axis=1)).round(10))
+
 
 class TestSlowVSFastImplementation():
     """Class checking that the slow implementation using
