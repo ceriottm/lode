@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Wed Jan 19 13:32:41 2022
+"""Tests for projection coefficients.
 
-@author: kevin
+These are the main tests for calculating the LODE features.
 """
 
 # Generic imports
@@ -32,47 +31,53 @@ class TestCoulombRandomStructures():
     """
 
     def test_coulomb_random_structure(self):
-        # Get the predefined frame with the
-        # Coulomb energy and forces computed from an
-        # Ewald summation code
-        frames = read(os.path.join(REF_STRUCTS, "coulomb_test_frames.xyz"), ":")
+        # Get the predefined frames with the
+        # Coulomb energy and forces computed by GROMACS using PME
+        # using parameters as defined in the GROMACS manual
+        # https://manual.gromacs.org/documentation/current/user-guide/mdp-options.html#ewald
+        #
+        # coulombtype = PME
+        # fourierspacing = 0.01  ; 1/nm
+        # pme_order = 8
+        # rcoulomb = 0.3  ; nm
+        frames = read(os.path.join(REF_STRUCTS, "coulomb_test_frames.xyz"),
+                      ":")
+
+        # Energies in Gaussian units (without e²/[4 π ɛ_0] prefactor)
         energies_target = np.array([frame.info["energy"] for frame in frames])
+        # Forces in Gaussian units per Å
         forces_target = np.array([frame.arrays["forces"] for frame in frames])
 
         # Define hyperparameters to run tests
         rcut = 0.1
         hypers = {
-            'smearing':.5,
-            'max_angular':1,
-            'max_radial':1,
-            'cutoff_radius':rcut,
-            'potential_exponent':1,
+            'smearing': .5,
+            'max_angular': 1,
+            'max_radial': 1,
+            'cutoff_radius': rcut,
+            'potential_exponent': 1,
             'radial_basis': 'monomial',
-            'compute_gradients':True,
-            'fast_implementation':True
-            }
+            'compute_gradients': True,
+            'fast_implementation': True
+        }
 
         # Run the slow implementation using manual for loops
-        # This version is kept for comparison with the C++/Rust
-        # versions in which the sums need to be looped explicitly.
+        # This version is kept for comparison with the C++/Rust versions
+        # in which the sums need to be looped explicitly.
         calculator = DensityProjectionCalculator(**hypers)
         calculator.transform(frames)
         descriptors = calculator.features
         gradients = calculator.feature_gradients
 
-        # Prefactor used to convert into standard units
-        # assuming that the cutoff is sufficiently small
-        prefac = np.sqrt(4 * np.pi / 3 * rcut**3)
-
         # Compute the analytically expected expressions for the
         # energies and forces
         energy = np.zeros(3)
-        forces = np.zeros((3,8,3))
+        forces = np.zeros((3, 8, 3))
         for iframe in range(len(frames)):
             # Define indices to specify blocks
-            i1 = 8 * iframe # start of Na block
-            i2 = 8 * iframe + 4 # end of Na / start of Cl block
-            i3 = 8 * iframe + 8 # end of Cl block
+            i1 = 8 * iframe  # start of Na block
+            i2 = 8 * iframe + 4  # end of Na / start of Cl block
+            i3 = 8 * iframe + 8  # end of Cl block
 
             # Add contributions in the following order:
             # Na-Na, Na-Cl, Cl-Na, Cl-Cl contributions
@@ -93,7 +98,7 @@ class TestCoulombRandomStructures():
             # y-component of forces
             forces[iframe, :, 1] += descriptors[i1:i3, 0, 0, 1]
             forces[iframe, :, 1] -= descriptors[i1:i3, 1, 0, 1]
-            
+
             # z-component of forces
             forces[iframe, :, 2] += descriptors[i1:i3, 0, 0, 2]
             forces[iframe, :, 2] -= descriptors[i1:i3, 1, 0, 2]
@@ -101,10 +106,15 @@ class TestCoulombRandomStructures():
             # flip sign for Cl atoms
             forces[iframe, 4:] *= -1
 
-        # Convert the energies and forces to descired units
+        # Prefactor used to convert into Gaussian units
+        # assuming that the cutoff is sufficiently small
+        prefac = np.sqrt(4 * np.pi / 3 * rcut**3)
         energy /= prefac
         forces /= prefac
-        forces *= np.sqrt(4 * np.pi / 3) # prefactor in spherical harmonic
+
+        # Convert the forces into Gaussian units
+        # using prefactor in spherical harmonic
+        forces *= np.sqrt(4 * np.pi / 3)
 
         # TODO: remove overcounting of i-j pairs within unit cell
 
@@ -281,20 +291,16 @@ class TestSuperCell():
         """
         n_atoms = len(frames[0].get_atomic_numbers())
 
-        hypers = dict(
-            max_radial=2,
-            max_angular=2,
-            cutoff_radius=1,
-            smearing=2,
-            radial_basis='GTO')
+        hypers = dict(max_radial=2,
+                      max_angular=2,
+                      cutoff_radius=1,
+                      smearing=2,
+                      radial_basis='GTO')
 
         # Original cell
         calculator = DensityProjectionCalculator(**hypers)
         calculator.transform(frames, show_progress=True)
-        features = calculator.features.reshape(
-            len(frames),
-            n_atoms,
-            *calculator.features.shape[1:])
+        features = calculator.features.reshape(len(frames), n_atoms, *calculator.features.shape[1:])
 
         # Super cell
         n_replica_per_dim = 2
@@ -304,18 +310,17 @@ class TestSuperCell():
         calculator_super = DensityProjectionCalculator(**hypers)
         calculator_super.transform(frames_super, show_progress=True)
         features_super = calculator_super.features.reshape(
-            len(frames),
-            n_replica * n_atoms,
+            len(frames), n_replica * n_atoms,
             *calculator_super.features.shape[1:])
 
         # Compare contribution of first atom
         # I don't know why we have to round here...
-        assert_allclose((features[:,0]).round(10),
-                        (features_super[:,::2].mean(axis=1)).round(10))
+        assert_allclose((features[:, 0]).round(10),
+                        (features_super[:, ::2].mean(axis=1)).round(10))
 
         # Compare contribution of second atom
-        assert_allclose((features[:,1]).round(10),
-                        (features_super[:,1::2].mean(axis=1)).round(10))
+        assert_allclose((features[:, 1]).round(10),
+                        (features_super[:, 1::2].mean(axis=1)).round(10))
 
 
 class TestSlowVSFastImplementation():
@@ -333,21 +338,21 @@ class TestSlowVSFastImplementation():
         cell = np.eye(3) * 16
         distances = np.linspace(1.5, 2., 20)
         for d in distances:
-            positions = [[1,1,1],[1,1,d+1]]
+            positions = [[1, 1, 1], [1, 1, d + 1]]
             frame = Atoms('O2', positions=positions, cell=cell, pbc=True)
             frames.append(frame)
 
         # Define hyperparameters to run tests
         hypers = {
-            'smearing':1.,
-            'max_angular':6,
-            'max_radial':1,
-            'cutoff_radius':5.,
-            'potential_exponent':1,
+            'smearing': 1.,
+            'max_angular': 6,
+            'max_radial': 1,
+            'cutoff_radius': 5.,
+            'potential_exponent': 1,
             'radial_basis': 'monomial',
-            'compute_gradients':True,
-            'fast_implementation':False
-            }
+            'compute_gradients': True,
+            'fast_implementation': False
+        }
 
         # Run the slow implementation using manual for loops
         # This version is kept for comparison with the C++/Rust
@@ -377,6 +382,9 @@ class TestSlowVSFastImplementation():
 
         # Check agreement between the coefficients obtained using
         # the two implementations
-        assert_allclose(descriptors_slow, descriptors_fast, rtol=1e-14, atol=1e-14)
+        assert_allclose(descriptors_slow,
+                        descriptors_fast,
+                        rtol=1e-14,
+                        atol=1e-14)
         assert_allclose(gradients_slow, gradients_fast, rtol=1e-14, atol=1e-14)
-        assert(dt_slow > 3 * dt_fast)
+        assert (dt_slow > 3 * dt_fast)

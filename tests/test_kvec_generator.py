@@ -1,9 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Wed Jan 19 13:32:41 2022
-
-@author: kevin
-"""
+"""Tests for k space vector generations."""
 
 import numpy as np
 import pytest

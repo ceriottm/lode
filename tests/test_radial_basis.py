@@ -1,9 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Wed Jan 19 13:32:41 2022
-
-@author: kevin
-"""
+"""Tests for calculating the radial projection."""
 
 import numpy as np
 from numpy.testing import assert_allclose
