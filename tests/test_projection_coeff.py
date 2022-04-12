@@ -44,14 +44,14 @@ class TestCoulombRandomStructures():
                       ":")
 
         # Energies in Gaussian units (without e²/[4 π ɛ_0] prefactor)
-        energies_target = np.array([frame.info["energy"] for frame in frames])
+        energy_target = np.array([frame.info["energy"] for frame in frames])
         # Forces in Gaussian units per Å
         forces_target = np.array([frame.arrays["forces"] for frame in frames])
 
         # Define hyperparameters to run tests
         rcut = 0.1
         hypers = {
-            'smearing': .5,
+            'smearing': .3,
             'max_angular': 1,
             'max_radial': 1,
             'cutoff_radius': rcut,
@@ -108,23 +108,21 @@ class TestCoulombRandomStructures():
 
         # Prefactor used to convert into Gaussian units
         # assuming that the cutoff is sufficiently small
-        prefac = np.sqrt(4 * np.pi / 3 * rcut**3)
-        energy /= prefac
-        forces /= prefac
-
-        # Convert the forces into Gaussian units
-        # using prefactor in spherical harmonic
-        forces *= np.sqrt(4 * np.pi / 3)
+        prefac_e = np.sqrt(3 / (4 * np.pi * rcut**3))
+        prefac_f = np.sqrt(15 / (4 * np.pi * rcut**5))
+        energy *= prefac_e
+        forces *= prefac_f
 
         # TODO: remove overcounting of i-j pairs within unit cell
 
         # Make sure that the values agree
         # TODO: unit conversions and prefactors of forces
         # For now, use temporary test that always passes
-        energies_lode = energies_target
-        forces_lode = forces_target
-        assert_allclose(energies_target, energies_lode)
-        assert_allclose(forces_target, forces_lode)
+        assert_allclose(forces_target, forces, rtol=0.3)
+
+        # Average rel. error of forces should be less than 2%
+        diff = np.abs(forces - forces_target).flatten()
+        assert np.mean(diff/forces.flatten()) < 2e-2
 
 
 class TestMadelung:
