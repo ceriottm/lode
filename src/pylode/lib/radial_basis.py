@@ -22,7 +22,7 @@ def gaussian(x, smearing):
 
 def erfxx(x, smearing):
     lim = np.sqrt(2. / np.pi) / smearing
-    with np.errstate(divide='ignore'):
+    with np.errstate(invalid='ignore'):
         res = np.nan_to_num(erf(x / smearing / np.sqrt(2)) / x,
                             nan=lim,
                             posinf=lim)
