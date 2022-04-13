@@ -48,7 +48,7 @@ class KvectorGenerator():
         if is_reciprocal_cell:
             self.cell = cell
         else:
-            self.cell = 2*np.pi * np.linalg.inv(cell.T)
+            self.cell = 2 * np.pi * np.linalg.inv(cell.T)
         self.cutoff = rcut
         self.need_origin = need_origin
 

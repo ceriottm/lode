@@ -196,7 +196,9 @@ class RadialBasis():
                         xx, R_n_ortho[n], density)
 
         elif self.radial_basis == 'monomial':
-            assert nmax == 1
+            if nmax != 1:
+                raise ValueError("Only nmax = 1 is allowed for "
+                                 "monomial basis.")
 
             # Initialization of the arrays in which to store function values
             xx = np.linspace(0, rcut, Nradial)
