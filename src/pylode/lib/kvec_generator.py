@@ -62,8 +62,6 @@ class KvectorGenerator():
         # Define boundaries of optimal search box
         M = self.cell @ self.cell.T
         kvol = np.linalg.det(self.cell)
-        n1max = np.floor(np.floor(np.sqrt(M[1,1]*M[2,2] - M[1,2]**2) / kvol * kcut))
-
         n1max = int(np.floor(np.sqrt(M[1,1]*M[2,2] - M[1,2]**2) / kvol * kcut))
         n2max = int(np.floor(np.sqrt(M[2,2]*M[0,0] - M[2,0]**2) / kvol * kcut))
         n3max = int(np.floor(np.sqrt(M[0,0]*M[1,1] - M[0,1]**2) / kvol * kcut))
