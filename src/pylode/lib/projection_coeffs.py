@@ -166,7 +166,7 @@ class DensityProjectionCalculator():
         # twice the used smearing: L > 2 * smearing
         # To make this also work for non-orthorhombic cells, the same
         # routine as in the kvec_generator is used.
-        kcut = 1./self.smearing # ignoring the factor of pi
+        kcut = 1/self.smearing # ignoring the factor of pi
         error_message_1 = 'Smearing is too large for structure '
         error_message_2 = '! The cell size has to be at least twice as large '
         error_message_2 += 'as the smearing'
