@@ -164,23 +164,29 @@ class DensityProjectionCalculator():
         # Check that the provided cells are large enough:
         # Roughly speaking, all cell dimensions L need to be at least
         # twice the used smearing: L > 2 * smearing
-        # To make this also work for non-orthorhombic cells, the same
-        # routine as in the kvec_generator is used.
-        kcut = 1/self.smearing # ignoring the factor of pi
-        error_message_1 = 'Smearing is too large for structure '
-        error_message_2 = '! The cell size has to be at least twice as large '
-        error_message_2 += 'as the smearing'
+        too_small_frames_list = []
+        length_min = 1e15
         for iframe, frame in enumerate(frames):
             cell = frame.get_cell()
-            kspace_cell = 2*np.linalg.inv(cell.T) # ignoring the factor of pi
-            M = kspace_cell @ kspace_cell.T
-            kvol = np.linalg.det(kspace_cell)
-            n1max = int(np.floor(np.sqrt(M[1,1]*M[2,2] - M[1,2]**2) / kvol * kcut))
-            n2max = int(np.floor(np.sqrt(M[2,2]*M[0,0] - M[2,0]**2) / kvol * kcut))
-            n3max = int(np.floor(np.sqrt(M[0,0]*M[1,1] - M[0,1]**2) / kvol * kcut))
-            nmin = min(n1max, n2max, n3max)
-            assert nmin > 0, error_message_1 + str(iframe) + error_message_2
+            basis_vector_lengths = np.linalg.norm(cell, axis=1)
+            length_min_cell = min(basis_vector_lengths)
+            if length_min > length_min_cell:
+                length_min = length_min_cell
+            if 2*self.smearing >= length_min_cell:
+                too_small_frames_list.append(iframe)
 
+        if self.smearing >= length_min/2:
+
+            raise ValueError(f"Given `smearing` ({self.smearing} Å) is too large for "
+                            f"structures {too_small_frames_list}. Smearing must be"
+                            f"smaller than half of the shortest"
+                            f"box length ({length_min} Å)! "
+                            f"Use a smearing > {length_min/2}")
+
+        # Generate a dictionary to map atomic species to array indices
+        # In general, the species are sorted according to atomic number
+        # and assigned the array indices 0,1,2,...
+        # Example: for H2O: H is mapped to 0 and O is mapped to 1.
         species = set()
         for frame in frames:
             for atom in frame:
