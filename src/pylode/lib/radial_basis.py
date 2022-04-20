@@ -108,13 +108,12 @@ class RadialBasis():
         # the density by the center atom is to be subtracted
         if self.subtract_center_contribution:
             if potential_exponent == 0:
-                density = lambda x: gaussian(x, self.smearing)
+                self.density_function = lambda x: gaussian(x, self.smearing)
             elif potential_exponent == 1:
-                density = lambda x: erfxx(x, self.smearing)
+                self.density_function = lambda x: erfxx(x, self.smearing)
             else:
                 raise ValueError(f"Potential exponent is {potential_exponent}"
                                  " but has to be one of 0 or 1!")
-            self.density_function = density
 
         if self.radial_basis not in ["monomial", "gto", "gto_primitive"]:
             raise ValueError(f"{self.radial_basis} is not an implemented basis"

@@ -71,7 +71,7 @@ def evaluate_spherical_harmonics(vectors, lmax):
                 Ylm = np.sqrt(2) * (-1)**abs(m) * Ylm.imag
             elif m > 0:
                 Ylm = np.sqrt(2) * (-1)**m * Ylm.real
-            elif m == 0:
+            else:  # m == 0
                 Ylm = Ylm.real
             spherical_harmonics_array[:,l**2+im] = Ylm
 
