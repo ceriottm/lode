@@ -383,6 +383,6 @@ class TestSlowVSFastImplementation():
         assert_allclose(descriptors_slow,
                         descriptors_fast,
                         rtol=1e-14,
-                        atol=1e-14)
+                        atol=2e-13)
         assert_allclose(gradients_slow, gradients_fast, rtol=1e-14, atol=1e-14)
         assert (dt_slow > 3 * dt_fast)

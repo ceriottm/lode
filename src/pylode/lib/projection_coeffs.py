@@ -169,7 +169,7 @@ class DensityProjectionCalculator():
         for iframe, frame in enumerate(frames):
             cell = frame.get_cell()
             basis_vector_lengths = np.linalg.norm(cell, axis=1)
-            length_min_cell = min(basis_vector_lengths)
+            length_min_cell = max(basis_vector_lengths)
             if length_min > length_min_cell:
                 length_min = length_min_cell
             if 2*self.smearing >= length_min_cell:
@@ -281,7 +281,7 @@ class DensityProjectionCalculator():
         #   (more precisely, the section 2 in supplementary infonformation)
         ###
         # Get k-vectors (also called reciprocal space or Fourier vectors)
-        kvecgen = KvectorGenerator(frame.get_cell(), np.pi / self.smearing)
+        kvecgen = KvectorGenerator(frame.get_cell(), 1.5 * np.pi / self.smearing)
         kvecgen.compute()
         kvectors = kvecgen.kvectors
         kvecnorms = kvecgen.kvector_norms
