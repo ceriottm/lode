@@ -17,7 +17,11 @@ jobs:
       with:
         python-version: ${{ matrix.python }}
     - name: Install package and dependencies
-      run: python3 -m pip install .[progressbar,test] -U
+      run: python -m pip install .[progressbar,test] -U
+    - name: Install librascal
+      run: python -m pip install git+https://github.com/lab-cosmo/librascal.git
+    - name: Install rascaline
+      run: python -m pip install git+https://github.com/Luthaf/rascaline.git
     - name: Test
       run: pytest --nbval-lax -v tests notebooks
 
