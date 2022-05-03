@@ -22,6 +22,7 @@ except ImportError:
 
 from .radial_basis import RadialBasis
 from .spherical_harmonics import evaluate_spherical_harmonics
+from .neighbor_list import NeighborList
 
 logger = logging.getLogger(__name__)
 
@@ -245,9 +246,9 @@ class DensityProjectionCalculator_Realspace():
         method which loops over all structures to obtain the complete
         vector for all environments.
         """
-	###
-	# Initialization
-	###
+        ###
+        # Initialization
+        ###
         # Define useful shortcuts
         lmax = self.max_angular
         nmax = self.max_radial
@@ -266,16 +267,18 @@ class DensityProjectionCalculator_Realspace():
             frame_gradients = np.zeros((num_gradients, 3, num_chem_species,
                                         self.max_radial, (self.max_angular+1)**2))
 
-	# Debug log
-        logger.debug(f"num_atoms = {num_atoms}")
-        logger.debug(f"shape frame_features = {frame_features.shape}")
+        # Debug log
+            logger.debug(f"num_atoms = {num_atoms}")
+            logger.debug(f"shape frame_features = {frame_features.shape}")
 	
-	###
+        ###
         #   Iterate over all atoms to evaluate the projection coefficients
         ###
         global_factor = 4 * np.pi / frame.get_volume()
         struc_factor = np.zeros(num_lm)
         struc_factor_grad = np.zeros(num_lm)
+        neighbor_list = NeighborList(frame, self.species_dict,
+				     self.cutoff_radius)
 
         # Loop over center atom
         for i_center in range(num_atoms):
@@ -292,12 +295,9 @@ class DensityProjectionCalculator_Realspace():
                 center_contrib = self.radial_proj.center_contributions
                 frame_features[i_center, i_chem_center, :, 0] -= center_contrib
 
-            # Loop over all atoms in the structure (including central atom)
-            for i_neigh in range(num_atoms): # TODO replace this by a neighbor list
-
-                # index describing chemical species of neighbor
-                i_chem_neigh = iterator_species[i_neigh]
-
+            # Loop over all possible neighbor species
+            neighbors_i = neighbor_list.neighbor_list[i_center]
+            for i_chem_neigh, distances in enumerate(neighbors_i):
                 # For Gaussian potentials, the Fourier transform
                 # at k=0 is finite and contributes to the coefficients
                 # (l,m)=(0,0). This is treated separately from the
@@ -307,19 +307,20 @@ class DensityProjectionCalculator_Realspace():
                     I_nl_zero = self.radial_proj.radial_spline(0)
                     I_nl_zero /= np.sqrt(4 * np.pi)
                     frame_features[i_center, i_chem_neigh, :, 0] += I_nl_zero[:,0] * global_factor
-
-                # Slow implementation using manual loops:
-                # this version is kept for better comparison with the C++ ver.
-		frame_features[i_center, i_chem_neigh] += 2 * global_factor * struc_factor * k_dep_factor[ik]
+                
+                # Set features to correct values
+                frame_features[i_center, i_chem_neigh] += 2 * global_factor * struc_factor * np.sum(distances)
     
-		# Update gradients
-		if self.compute_gradients:
-			# Update x,y,z components
-			frame_gradients[i_neigh + i_center * num_atoms, 0, i_chem_neigh] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[0]
-			frame_gradients[i_neigh + i_center * num_atoms, 1, i_chem_neigh] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[1]
-			frame_gradients[i_neigh + i_center * num_atoms, 2, i_chem_neigh] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[2]
+            # If required: set gradients to correct values 
+            # TODO: implement this
+            if self.compute_gradients:
+                for i_neigh in range(num_atoms):
+                    # Update x,y,z components
+                    frame_gradients[i_neigh + i_center * num_atoms, 0, i_chem_neigh] += global_factor
+                    frame_gradients[i_neigh + i_center * num_atoms, 1, i_chem_neigh] += global_factor
+                    frame_gradients[i_neigh + i_center * num_atoms, 2, i_chem_neigh] += global_factor
         
-	if self.compute_gradients:
+        if self.compute_gradients:
             return frame_features, frame_gradients
         else:
             return frame_features

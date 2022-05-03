@@ -242,7 +242,10 @@ class DensityProjectionCalculator():
         method which loops over all structures to obtain the complete
         vector for all environments.
         """
+        ###
         # Initialization
+        ###
+        # Define useful shortcuts
         lmax = self.max_angular
         nmax = self.max_radial
         num_lm = (lmax+1)**2
@@ -254,15 +257,15 @@ class DensityProjectionCalculator():
 
         # Initialize arrays in which to store all features
         frame_features = np.zeros((num_atoms, num_chem_species,
-                                  self.max_radial, (self.max_angular+1)**2))
-
-        logger.debug(f"num_atoms = {num_atoms}")
-        logger.debug(f"shape frame_features = {frame_features.shape}")
-
+                                self.max_radial, (self.max_angular+1)**2))
         if self.compute_gradients:
             num_gradients = np.sum(num_atoms**2)
             frame_gradients = np.zeros((num_gradients, 3, num_chem_species,
                                         self.max_radial, (self.max_angular+1)**2))
+
+        # Debug log
+        logger.debug(f"num_atoms = {num_atoms}")
+        logger.debug(f"shape frame_features = {frame_features.shape}")
 
         # Extra phase dependent on angular channel for convenience
         angular_phases = np.zeros(lmax+1)
