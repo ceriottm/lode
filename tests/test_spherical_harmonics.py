@@ -2,6 +2,7 @@
 """Tests for calculating the spherical projection."""
 
 import numpy as np
+from numpy.testing import assert_allclose
 
 from pylode.lib.spherical_harmonics import evaluate_spherical_harmonics
 
@@ -66,3 +67,74 @@ class TestSphericalHarmonics:
         innerprod_matrix = coeffs.T @ coeffs / N * np.pi * 4
         difference = innerprod_matrix - np.eye(num_coeffs)
         assert np.linalg.norm(difference) / num_coeffs**2 < 1e-2
+
+    def test_spherical_harmonics_analytical_small_l(self):
+        """
+        For small values of l=0,1,2 we compare the obtained values
+        for the spherical harmonics evaluated at various points with
+        the analytical expressions.
+        l=0 is mostly a sanity check, while l=1,2 are the first nontrivial
+        spherical harmonics of odd / even degree, respectively.
+        Perfect agreement of these 1+3+5=9 functions is highly likely to
+        catch any potential discrepancies in the used conventions of the
+        spherical harmonics.
+        """
+        # Define the two spherical angles over a grid
+        N_theta = 53
+        N_phi = 119
+        phis = np.linspace(0, 2*np.pi, N_phi)
+        thetas = np.arccos(np.linspace(-1,1,N_theta))
+        phis_2d, thetas_2d = np.meshgrid(phis, thetas, indexing='ij')
+        assert phis_2d.shape == (N_phi, N_theta) # first index is for phis
+
+        # Generate unit vectors along the specified directions
+        unit_vectors = np.zeros((N_phi, N_theta, 3))
+        unit_vectors[:,:,0] = np.cos(phis_2d) * np.sin(thetas_2d)
+        unit_vectors[:,:,1] = np.sin(phis_2d) * np.sin(thetas_2d)
+        unit_vectors[:,:,2] = np.cos(thetas_2d)
+
+        # Define exact spherical harmonics
+        prefac1 = 1./np.sqrt(4*np.pi)
+        prefac2 = np.sqrt(3 / (4 * np.pi))
+        prefac3 = np.sqrt(15 / (4 * np.pi))
+        prefac20 = np.sqrt(5 / (16 * np.pi))
+        prefac21 = np.sqrt(15 / (4 * np.pi))
+        prefac22 = np.sqrt(15/ (16 * np.pi))
+        cart_x = lambda theta, phi: np.cos(phi) * np.sin(theta)
+        cart_y = lambda theta, phi: np.sin(phi) * np.sin(theta)
+        cart_z = lambda theta, phi: np.cos(theta)
+        Y00 = lambda theta, phi: prefac1 * np.ones_like(theta)
+        Y1m = lambda theta, phi: prefac2 * np.sin(theta) * np.sin(phi)
+        Y10 = lambda theta, phi: prefac2 * np.cos(theta)
+        Y11 = lambda theta, phi: prefac2 * np.sin(theta) * np.cos(phi)
+        Y2n = lambda theta, phi: prefac21 * cart_y(theta, phi) * cart_x(theta, phi)
+        Y2m = lambda theta, phi: prefac21 * cart_y(theta, phi) * cart_z(theta, phi)
+        Y20 = lambda theta, phi: prefac20 * (3 * np.cos(theta)**2 - 1)
+        Y21 = lambda theta, phi: prefac21 * cart_x(theta, phi) * cart_z(theta, phi)
+        Y22 = lambda theta, phi: prefac22 * (cart_x(theta, phi)**2 - cart_y(theta, phi)**2)
+
+        # Evaluate the real spherical harmonics using the
+        # analytical expressions
+        sph_harm_exact = np.zeros((9, N_phi, N_theta))
+        sph_harm_exact[0] = Y00(thetas_2d, phis_2d)
+        sph_harm_exact[1] = Y1m(thetas_2d, phis_2d)
+        sph_harm_exact[2] = Y10(thetas_2d, phis_2d)
+        sph_harm_exact[3] = Y11(thetas_2d, phis_2d)
+        sph_harm_exact[4] = Y2n(thetas_2d, phis_2d)
+        sph_harm_exact[5] = Y2m(thetas_2d, phis_2d)
+        sph_harm_exact[6] = Y20(thetas_2d, phis_2d)
+        sph_harm_exact[7] = Y21(thetas_2d, phis_2d)
+        sph_harm_exact[8] = Y22(thetas_2d, phis_2d)
+
+        # Evaluate the real spherical harmonics using the general code
+        # from the library
+        sph_harm_check = np.zeros_like(sph_harm_exact)
+        for i, vecs in enumerate(unit_vectors):
+            # Pass a 2D array of unit vectors for each fixed value of theta
+            sph_harm_check[:,i] =  evaluate_spherical_harmonics(vecs, lmax=2).T
+
+        # Check agreement of the pyLODE spherical harmonics with the exact values
+        assert_allclose(sph_harm_exact, sph_harm_check, rtol=1e-15, atol=3e-16) 
+
+
+
