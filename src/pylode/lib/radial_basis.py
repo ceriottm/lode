@@ -252,7 +252,8 @@ class RadialBasis():
         # If desired, add a smooth cutoff function that results in a
         # continuous behavior of the coefficients as atoms enter or
         # leave the cutoff ball.
-        f_cutoff = lambda x: np.where(rcut-x>width, 1, np.cos((x-rcut+width)*np.pi/2/width))
+        f_smooth = lambda x: 0.5 * np.cos((x-rcut+width)*np.pi/width) + 0.5
+        f_cutoff = lambda x: np.where(rcut - x > width, 1, f_smooth(x))
 
         # Start computing real space evaluation of density
         # contribution for a neighbor atom as a function of the
