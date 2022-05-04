@@ -143,7 +143,7 @@ class DensityProjectionCalculator_Realspace():
                                        self.radial_basis,
                                        potential_exponent,
                                        self.subtract_center_contribution)
-        self.radial_proj.compute(np.pi/self.smearing)
+        self.radial_proj.compute_realspace_spline()
 
     def transform(self, frames, show_progress=False):
         """
@@ -274,43 +274,34 @@ class DensityProjectionCalculator_Realspace():
         ###
         #   Iterate over all atoms to evaluate the projection coefficients
         ###
-        global_factor = 4 * np.pi / frame.get_volume()
+        global_factor = 2 * np.pi
         struc_factor = np.zeros(num_lm)
         struc_factor_grad = np.zeros(num_lm)
-        neighbor_list = NeighborList(frame, self.species_dict,
-				     self.cutoff_radius)
+        neighbor_list = NeighborList(frame, self.species_dict, self.cutoff_radius)
 
         # Loop over center atom
         for i_center in range(num_atoms):
 
-            # index describing chemical species of center atom
-            i_chem_center = iterator_species[i_center]
-
-            # If desired (False by default), remove the contribution
-            # of the center atom to the density.
-            # By symmetry, this only affects the (l,m)=(0,0) components
-            # of the projection coefficients and only the chemical
-            # species channel that agrees with the center atom.
-            if self.subtract_center_contribution:
-                center_contrib = self.radial_proj.center_contributions
-                frame_features[i_center, i_chem_center, :, 0] -= center_contrib
-
             # Loop over all possible neighbor species
             neighbors_i = neighbor_list.neighbor_list[i_center]
-            for i_chem_neigh, distances in enumerate(neighbors_i):
-                # For Gaussian potentials, the Fourier transform
-                # at k=0 is finite and contributes to the coefficients
-                # (l,m)=(0,0). This is treated separately from the
-                # remaining sum over k-points since it is only
-                # used for specific densities and only affects (l,m)=(0,0).
-                if self.potential_exponent == 0: # add constant term
-                    I_nl_zero = self.radial_proj.radial_spline(0)
-                    I_nl_zero /= np.sqrt(4 * np.pi)
-                    frame_features[i_center, i_chem_neigh, :, 0] += I_nl_zero[:,0] * global_factor
-                
-                # Set features to correct values
-                frame_features[i_center, i_chem_neigh] += 2 * global_factor * struc_factor * np.sum(distances)
-    
+            for i_chem_neigh, neighbors_ia in enumerate(neighbors_i):
+                # Make sure that neighbors of this species are present
+                if neighbors_ia['number_of_neighbors'] == 0:
+                    continue
+
+                # Radial contributions
+                distances = neighbors_ia['pair_distances']
+                I_nl = self.radial_proj.radial_spline(distances) # shape N x (lmax+1)
+
+                # Angular contributions
+                vectors = neighbors_ia['pair_vectors']
+                sph_harm = evaluate_spherical_harmonics(vectors, lmax) # shape N x (lmax+1)^2
+
+                for l in range(lmax+1):
+                    coeff = np.sum(I_nl[l] * sph_harm[:,l**2:(l+1)**2], axis=0)
+                    frame_features[i_center, i_chem_neigh, 0,
+                                   l**2:(l+1)**2] += coeff
+
             # If required: set gradients to correct values 
             # TODO: implement this
             if self.compute_gradients:
