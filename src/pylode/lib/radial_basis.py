@@ -223,7 +223,7 @@ class RadialBasis():
 
         self.radial_spline = CubicSpline(kk, projcoeffs)
 
-    def compute_realspace_spline(self, Nradii = 100):
+    def compute_realspace_spline(self, Nradii = 100, smooth_cutoff_width=0.):
         """
         Numerically evaluate the double integral over the radius r and the
         angle theta (or its cosine) appearing in the real space evaluation
@@ -242,11 +242,17 @@ class RadialBasis():
         nmax = self.max_radial
         lmax = self.max_angular
         rcut = self.cutoff_radius
+        width = smooth_cutoff_width
         ls = np.arange(lmax+1)
 
         # Define the dimer distances over which to spline
         rmin = 1e-5
         radii = np.linspace(rmin, rcut, Nradii)
+
+        # If desired, add a smooth cutoff function that results in a
+        # continuous behavior of the coefficients as atoms enter or
+        # leave the cutoff ball.
+        f_cutoff = lambda x: np.where(rcut-x>width, 1, np.cos((x-rcut+width)*np.pi/2/width))
 
         # Start computing real space evaluation of density
         # contribution for a neighbor atom as a function of the
@@ -256,7 +262,7 @@ class RadialBasis():
         for l in ls:
             for ir, rij in enumerate(radii):
                 density = lambda r, c: self.density_function(np.sqrt(r**2+rij**2-2*r*rij*c))
-                prefacs = lambda r, c: r**(2+l) * eval_legendre(l, c)
+                prefacs = lambda r, c: f_cutoff(rij) * r**(2+l) * eval_legendre(l, c)
                 integrand = lambda r, c: prefacs(r,c) * density(r,c)
                 integrals[ir, l] = dblquad(integrand, 0, rcut, lambda x: -1, lambda x: 1)
 
