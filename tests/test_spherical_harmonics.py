@@ -30,11 +30,11 @@ class TestSphericalHarmonics:
 
     def test_spherical_harmonics_x_y(self):
         """use vectors confined on x-y plane"""
-        np.random.seed(324238)
+        rng = np.random.default_rng(3218932)
         N = 10
         lmax = 8
         vectors_xy = np.zeros((N, 3))
-        vectors_xy[:, :2] = np.random.normal(0, 1, (N, 2))
+        vectors_xy[:, :2] = rng.normal(0, 1, (N, 2))
 
         # Certain coefficients need to vanish by symmetry
         coeffs = evaluate_spherical_harmonics(vectors_xy, lmax)
@@ -48,7 +48,8 @@ class TestSphericalHarmonics:
         evaluated at large number of random points """
         N = 1000
         lmax = 8
-        vectors = np.random.normal(0, 1, (N, 3))
+        rng = np.random.default_rng(3218932)
+        vectors = rng.normal(0, 1, (N, 3))
         coeffs = evaluate_spherical_harmonics(vectors, lmax)
         num_coeffs = (lmax + 1)**2
         assert coeffs.shape == (N, num_coeffs)
@@ -177,6 +178,3 @@ class TestSphericalHarmonics:
 
         # Check agreement of the pyLODE spherical harmonics with the exact values
         assert_allclose(sph_harm_exact, sph_harm_check, rtol=1e-15, atol=3e-16) 
-
-
-
