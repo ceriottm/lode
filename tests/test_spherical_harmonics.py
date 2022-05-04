@@ -44,7 +44,7 @@ class TestSphericalHarmonics:
                     assert np.linalg.norm(coeffs[:, l**2 + im]) / N < 1e-14
 
     def test_spherical_harmonics_addition(self):
-        """Verify addition theorem and orthogonality of spherical harmonics 
+        """Verify addition theorem of spherical harmonics 
         evaluated at large number of random points """
         N = 1000
         lmax = 8
@@ -67,6 +67,48 @@ class TestSphericalHarmonics:
         innerprod_matrix = coeffs.T @ coeffs / N * np.pi * 4
         difference = innerprod_matrix - np.eye(num_coeffs)
         assert np.linalg.norm(difference) / num_coeffs**2 < 1e-2
+
+    def test_spherical_harmonics_orthogonality(self):
+        """
+        The spherical harmonics form an orthonormal basis of the
+        L2 space of functions defined on the 2-sphere S2.
+        In simpler terms, any reasonable function f(theta, phi)
+        that only depends on the two spherical angles can be
+        expressed as a linear combination of spherical harmonics,
+        which need to satisfy certain orthogonality relations that
+        are expressed in terms of integrals over the two angles.
+        In this test, we perform a numerical integration to verify
+        the orthogonality of the used spherical harmonics.
+        """
+        # Define the two spherical angles over a grid
+        N_theta = 200
+        N_phi = 200
+        phis = np.linspace(0, 2*np.pi, N_phi, endpoint=False)
+        thetas = np.arccos(np.linspace(-1,1,N_theta+1, endpoint=True))
+        thetas = 0.5 * (thetas[1:] + thetas[:-1])
+        #thetas = np.arccos(np.linspace(-1,1,N_theta, endpoint=True))
+        phis_2d, thetas_2d = np.meshgrid(phis, thetas, indexing='ij')
+        assert phis_2d.shape == (N_phi, N_theta) # first index is for phis
+
+        # Generate unit vectors along the specified directions
+        unit_vectors = np.zeros((N_phi, N_theta, 3))
+        unit_vectors[:,:,0] = np.cos(phis_2d) * np.sin(thetas_2d)
+        unit_vectors[:,:,1] = np.sin(phis_2d) * np.sin(thetas_2d)
+        unit_vectors[:,:,2] = np.cos(thetas_2d)
+
+        # Evaluate the real spherical harmonics using the general code
+        # from the library
+        lmax = 5
+        sph_harm_values = np.zeros(((lmax+1)**2, N_phi * N_theta))
+        for i, vecs in enumerate(unit_vectors):
+            # Pass a 2D array of unit vectors for each fixed value of theta
+            sph_harm_values[:,i*N_theta:(i+1)*N_theta] =  evaluate_spherical_harmonics(vecs, lmax=lmax).T
+
+        # Orthogonality matrix:
+        prefac = 4 * np.pi / (N_phi * N_theta)
+        ortho_matrix = prefac * sph_harm_values @ sph_harm_values.T
+        ortho_matrix_ref = np.eye((lmax+1)**2)
+        assert_allclose(ortho_matrix, ortho_matrix_ref, atol=1e-2, rtol=1e-2)
 
     def test_spherical_harmonics_analytical_small_l(self):
         """
