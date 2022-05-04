@@ -7,7 +7,9 @@ Created on Tue Mar 16 19:42:22 2021
 
 import numpy as np
 from scipy.interpolate import CubicSpline
+from scipy.integrate import dblquad
 from scipy.special import erf, spherical_jn  # arguments (n,z)
+from scipy.special import eval_legendre
 
 try:
     from scipy.integrate import simpson
@@ -220,3 +222,43 @@ class RadialBasis():
                     xx, np.ones_like(xx), density) * normalization[0]
 
         self.radial_spline = CubicSpline(kk, projcoeffs)
+
+    def compute_realspace_spline(self, Nradii = 100):
+        """
+        Numerically evaluate the double integral over the radius r and the
+        angle theta (or its cosine) appearing in the real space evaluation
+        of the projection coefficients and spline the result as a function
+        of the neighbor distance rij.
+        Warning: Currently, only the monomial basis is supported.
+        The density, on the other hand, is arbitrary and can be both
+        a Gaussian or a smeared Coulomb density.
+
+        Parameters
+        ----------
+        Nradii : INT, optional
+            Number of nodes to use in the spline
+        """
+        # Define shortcuts for more readable code
+        nmax = self.max_radial
+        lmax = self.max_angular
+        rcut = self.cutoff_radius
+        ls = np.arange(lmax+1)
+
+        # Define the dimer distances over which to spline
+        rmin = 1e-5
+        radii = np.linspace(rmin, rcut, Nradii)
+
+        # Start computing real space evaluation of density
+        # contribution for a neighbor atom as a function of the
+        # radial distance rij for different l-channels.
+        # Note that only the monomial basis is supported.
+        integrals = np.zeros((Nradii, lmax+1))
+        for l in ls:
+            for ir, rij in enumerate(radii):
+                density = lambda r, c: self.density_function(np.sqrt(r**2+rij**2-2*r*rij*c))
+                prefacs = lambda r, c: r**(2+l) * eval_legendre(l, c)
+                integrand = lambda r, c: prefacs(r,c) * density(r,c)
+                integrals[ir, l] = dblquad(integrand, 0, rcut, lambda x: -1, lambda x: 1)
+
+        # Generate spline class object
+        self.radial_spline_realspace = CubicSpline(radii, integrals)
