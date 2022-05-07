@@ -103,8 +103,8 @@ class TestCoulombRandomStructures():
             forces[iframe, :, 2] += descriptors[i1:i3, 0, 0, 2]
             forces[iframe, :, 2] -= descriptors[i1:i3, 1, 0, 2]
 
-            # flip sign for Cl atoms
-            forces[iframe, 4:] *= -1
+            # flip sign for Na atoms
+            forces[iframe, :4] *= -1
 
         # Prefactor used to convert into Gaussian units
         # assuming that the cutoff is sufficiently small

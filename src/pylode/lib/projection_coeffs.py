@@ -335,7 +335,7 @@ class DensityProjectionCalculator():
         for i in range(num_atoms):
             for j in range(num_atoms):
                 strucfac_real[:, i, j] = cosines[:,i] * cosines[:,j] + sines[:,i] * sines[:,j]
-                strucfac_imag[:, i, j] = cosines[:,i] * sines[:,j] - sines[:,i] * cosines[:,j]
+                strucfac_imag[:, i, j] = sines[:,i] * cosines[:,j] - cosines[:,i] * sines[:,j]
  
         ###
         # Step 3: Main loop:
