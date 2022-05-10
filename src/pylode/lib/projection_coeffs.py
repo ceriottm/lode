@@ -293,9 +293,11 @@ class DensityProjectionCalculator():
         # Fourier transform of density times Fourier transform of potential
         # This is the line where using Gaussian or 1/r^p for different p are
         # distinguished
-        G_k = np.exp(-0.5 * (kvecnorms*self.smearing)**2)
-        if self.potential_exponent == 1:
-            G_k *= 4 * np.pi / kvecnorms**2
+        if self.potential_exponent == 0:
+            prefac = (4 * np.pi * self.smearing**2)**(3/4)
+            G_k = prefac * np.exp(-0.5 * (kvecnorms*self.smearing)**2)
+        elif self.potential_exponent == 1:
+            G_k = 4 * np.pi / kvecnorms**2 * np.exp(-0.5 * (kvecnorms*self.smearing)**2)
 
         # Spherical harmonics evaluated at the k-vectors
         # for angular projection
