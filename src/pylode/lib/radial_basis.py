@@ -9,7 +9,7 @@ import numpy as np
 from scipy.interpolate import CubicSpline
 from scipy.integrate import dblquad
 from scipy.special import erf, spherical_jn  # arguments (n,z)
-from scipy.special import eval_legendre
+from scipy.special import eval_legendre, gamma
 
 try:
     from scipy.integrate import simpson
@@ -163,12 +163,17 @@ class RadialBasis():
             xx = np.linspace(0, rcut * 2.5, Nradial)
             R_n = np.array([f_gto(n, xx)
                             for n in range(nmax)])  # nmax x Nradial
+            norms = np.zeros((nmax,))
+            for n in range(nmax):
+                norms[n] = np.sqrt(2 / sigma[n]**(3+2*n) * gamma(1.5 + n))
 
             # Orthonormalize
             innerprods = np.zeros((nmax, nmax))
             for i in range(nmax):
                 for j in range(nmax):
                     innerprods[i, j] = innerprod(xx, R_n[i], R_n[j])
+                    innerprods[i, j] *= norms[i] * norms[j]
+
             eigvals, eigvecs = np.linalg.eigh(innerprods)
             transformation = eigvecs @ np.diag(np.sqrt(
                 1. / eigvals)) @ eigvecs.T
@@ -186,7 +191,7 @@ class RadialBasis():
                     for ik, k in enumerate(kk):
                         bessel = spherical_jn(l, k * xx)
                         projcoeffs[ik, n, l] = innerprod(
-                            xx, R_n_ortho[n], bessel)
+                            xx, norms[n] * R_n_ortho[n], bessel)
 
             # Compute self contribution to the l=0 components
             if self.subtract_center_contribution:
@@ -194,7 +199,7 @@ class RadialBasis():
                 density = self.density_function(xx)
                 for n in range(nmax):
                     self.center_contributions[n] = prefac * innerprod(
-                        xx, R_n_ortho[n], density)
+                        xx, norms[n] * R_n_ortho[n], density)
 
         elif self.radial_basis == 'monomial':
             if nmax != 1:
