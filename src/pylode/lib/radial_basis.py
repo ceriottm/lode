@@ -17,10 +17,9 @@ except ImportError:  # scipy <= 1.5.4
     from scipy.integrate import simps as simpson
 
 
-def gaussian(x, smearing):
-    prefac = 1. / np.power(2 * np.pi * smearing**2, 1.5)
-    return prefac * np.exp(-0.5 * x**2 / smearing)
-
+def gaussian_L2(x, smearing):
+    prefac = 1 / (np.pi * smearing**2)**(3/4)
+    return prefac * np.exp(-0.5 * x**2 / smearing**2)
 
 def erfxx(x, smearing):
     lim = np.sqrt(2. / np.pi) / smearing
@@ -29,7 +28,6 @@ def erfxx(x, smearing):
                             nan=lim,
                             posinf=lim)
     return res
-
 
 def innerprod(xx, yy1, yy2):
     """
@@ -110,7 +108,7 @@ class RadialBasis():
         # the density by the center atom is to be subtracted
         if self.subtract_center_contribution:
             if potential_exponent == 0:
-                self.density_function = lambda x: gaussian(x, self.smearing)
+                self.density_function = lambda x: gaussian_L2(x, self.smearing)
             elif potential_exponent == 1:
                 self.density_function = lambda x: erfxx(x, self.smearing)
             else:
@@ -163,16 +161,19 @@ class RadialBasis():
             xx = np.linspace(0, rcut * 2.5, Nradial)
             R_n = np.array([f_gto(n, xx)
                             for n in range(nmax)])  # nmax x Nradial
+            
+            # Define normalizations of GTOs
             norms = np.zeros((nmax,))
             for n in range(nmax):
-                norms[n] = np.sqrt(2 / sigma[n]**(3+2*n) * gamma(1.5 + n))
+                norms[n] = np.sqrt(2 / (sigma[n]**(3+2*n) * gamma(1.5 + n)))
+                if self.radial_basis != 'gto_primitive':
+                    R_n[n] *= norms[n]
 
             # Orthonormalize
             innerprods = np.zeros((nmax, nmax))
             for i in range(nmax):
                 for j in range(nmax):
                     innerprods[i, j] = innerprod(xx, R_n[i], R_n[j])
-                    innerprods[i, j] *= norms[i] * norms[j]
 
             eigvals, eigvecs = np.linalg.eigh(innerprods)
             transformation = eigvecs @ np.diag(np.sqrt(
@@ -191,7 +192,7 @@ class RadialBasis():
                     for ik, k in enumerate(kk):
                         bessel = spherical_jn(l, k * xx)
                         projcoeffs[ik, n, l] = innerprod(
-                            xx, norms[n] * R_n_ortho[n], bessel)
+                            xx, R_n_ortho[n], bessel)
 
             # Compute self contribution to the l=0 components
             if self.subtract_center_contribution:
@@ -199,7 +200,7 @@ class RadialBasis():
                 density = self.density_function(xx)
                 for n in range(nmax):
                     self.center_contributions[n] = prefac * innerprod(
-                        xx, norms[n] * R_n_ortho[n], density)
+                        xx, R_n_ortho[n], density)
 
         elif self.radial_basis == 'monomial':
             if nmax != 1:
