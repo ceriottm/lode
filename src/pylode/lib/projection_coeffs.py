@@ -10,6 +10,7 @@ angular channel l=0,1,2,...,lmax is supported.
 import logging
 
 import numpy as np
+from scipy.specal import gammainc
 
 try:
     from tqdm import tqdm
@@ -115,8 +116,8 @@ class DensityProjectionCalculator():
         self.fast_implementation = fast_implementation
 
         # Make sure that the provided parameters are consistent
-        if self.potential_exponent not in [0, 1]:
-            raise ValueError("Potential exponent has to be one of 0 or 1!")
+        if self.potential_exponent not in [0, 1, 2, 3, 4, 5, 6]:
+            raise ValueError("Potential exponent has to be 0, 1, 2, ..., 6")
 
         if self.radial_basis not in ["monomial", "gto", "gto_primitive"]:
             raise ValueError(f"{self.radial_basis} is not an implemented basis"
@@ -298,6 +299,12 @@ class DensityProjectionCalculator():
             G_k = prefac * np.exp(-0.5 * (kvecnorms*self.smearing)**2)
         elif self.potential_exponent == 1:
             G_k = 4 * np.pi / kvecnorms**2 * np.exp(-0.5 * (kvecnorms*self.smearing)**2)
+        else:
+            gammainc_upper = lambda n, x: 1 - gammainc(n, x)
+            prefac = 1.
+            peff = 3 - self.potential_exponent 
+            G_k = prefac * gammainc_upper(peff/2, 0.5 * (kvecnorms*self.smearing)**2)
+            G_k /= kvecnorms**peff
 
         # Spherical harmonics evaluated at the k-vectors
         # for angular projection
