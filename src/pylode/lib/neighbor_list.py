@@ -6,9 +6,7 @@ The list is used in the real space implementation of the
 projection coefficients.
 """
 
-from re import I
 import numpy as np
-from ase.neighborlist import get_distance_matrix
 
 class NeighborList_Entry():
     """
@@ -24,7 +22,7 @@ class NeighborList_Entry():
         for i, entry in enumerate(input_list):
             atom_indices[i] = entry[0]
             pair_distances[i] = entry[1]
-            pair_vectors[i] = np.array([entry[2], entry[3], entry[4]])
+            pair_vectors[i] = entry[2]
         
         # Store provided entries in a convenient dictionary format
         self.entries = {}
@@ -53,16 +51,27 @@ class NeighborList():
         Primitive implementation of neighbor list not taking into account
         periodic images. All the pairs are counted twice in this version.
         This makes the actual implementation slower but leads to a simpler
-        code. In future updates, half-neighbor lists will be used instead.
+        code.
         """
         # Initialization
-        distance_matrix = self.frame.get_distance_matrix()
+        cell = self.frame.get_cell()
         positions = self.frame.get_positions()
-        chem_species = self.frame.get_chemical_species()
-        num_atoms = len(distance_matrix)
-        assert num_atoms == len(chem_species)
+        chem_species = self.frame.get_chemical_symbols()
+        num_atoms = len(chem_species)
+        assert num_atoms == len(positions)
         num_species = len(self.species_dict)
         self.neighbor_list = []
+
+        # Create matrix that generates all periodic images in the cells
+        # neighboring the center one
+        periodic_shifts = np.zeros((27, 3))
+        idx = 0
+        for ix in [-1,0,1]:
+            for iy in [-1, 0, 1]:
+                for iz in [-1, 0, 1]:
+                    shift = ix * cell[0] + iy * cell[1] + iz * cell[2]
+                    periodic_shifts[idx] = shift
+                    idx += 1
 
         for icenter in range(num_atoms):
             # For each center atom i, the neighbor list is a python list
@@ -72,19 +81,24 @@ class NeighborList():
             # connecting atom i to atom j.
             r_i = positions[icenter] 
             neighbors_i = []
+
+            # The a-th entry of this list contains the information about
+            # neighbors of species a
             for a in range(num_species):
                     neighbors_i.append([])
 
             # Start filling up the neighbor list
-            for ineigh, r_neigh, aneigh in enumerate(zip(positions, chem_species)):
-                dist2 = distance_matrix[icenter, ineigh]
-                r_ij = r_neigh - r_i
-                dist = np.linalg.norm(r_ij)
-                assert dist == dist2
+            for j, (r_j, a_j) in enumerate(zip(positions, chem_species)):
+                for shift in periodic_shifts:
+                    if j == icenter and np.allclose(shift, np.array([0,0,0])):
+                        continue 
+                    r_j_tot = r_j + shift
+                    r_ij = r_j_tot - r_i
+                    dist = np.linalg.norm(r_ij)
 
-                if dist < self.cutoff:
-                    species_idx = self.species_dict[aneigh]
-                    neighbors_i[species_idx].append([ineigh, dist, r_ij[0], r_ij[1], r_ij[2]])
+                    if dist < self.cutoff:
+                        species_idx = self.species_dict[a_j]
+                        neighbors_i[species_idx].append([j, dist, r_ij])
 
             # Convert the lists of distances to numpy arrays
             for a in range(num_species):
