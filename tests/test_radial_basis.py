@@ -107,24 +107,25 @@ class TestRadialProjection:
         nmax = 6
         lmax = 2
         rcut = 5.
-        sigma = 1.0
+        sigma = 0.8
         radial_basis = 'gto_primitive'
 
         # Define density function and compute center contributions
-        prefac = 1./np.power(2*np.pi*sigma**2,1.5)
-        density = lambda x: prefac * np.exp(-0.5*x**2/sigma)
+        prefac = 1 / (np.pi*sigma**2)**(3/4)
+        density = lambda x: prefac * np.exp(-0.5*x**2/sigma**2)
         radproj = RadialBasis(nmax, lmax, rcut, sigma,
                               radial_basis, True, potential_exponent=0)
         radproj.compute(np.pi/sigma, Nradial=10000)
         center_contr = radproj.center_contributions 
 
         # Analytical evaluation of center contributions
-        normalization = 1./np.sqrt(2*np.pi*sigma**2)**3
+        normalization = 1./(np.pi*sigma**2)**(3/4)
         sigma_radial = np.ones(nmax, dtype=float)
-        for i in range(1,nmax):
-            sigma_radial[i] = np.sqrt(i)
+        for n in range(1,nmax):
+            sigma_radial[n] = np.sqrt(n)
         sigma_radial *= rcut/nmax
-
+        
+        # Define center coefficients
         center_contr_analytical = np.zeros((nmax))
         for n in range(nmax):
             sigmatempsq = 1./(1./sigma**2 + 1./sigma_radial[n]**2)
@@ -141,9 +142,8 @@ class TestRadialProjection:
             center_contr_numerical[n] = quad(integrand, 0., np.inf)[0]
 
         # Check that the three methods agree with one another
-        assert_allclose(center_contr, center_contr_analytical, rtol=5e-10)
         assert_allclose(center_contr_numerical, center_contr_analytical, rtol=1e-11)
-
+        assert_allclose(center_contr, center_contr_analytical, rtol=1e-9)
 
     def test_center_contribution_gto_longrange(self):
         # Define hyperparameters
@@ -154,7 +154,6 @@ class TestRadialProjection:
         radial_basis = 'gto_primitive'
 
         # Analytical evaluation of center contributions
-        normalization = 1./np.sqrt(2*np.pi*sigma**2)**3
         sigma_radial = np.ones(nmax, dtype=float)
         for i in range(1,nmax):
             sigma_radial[i] = np.sqrt(i)
