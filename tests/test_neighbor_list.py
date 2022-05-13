@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Tests for k space vector generations."""
+"""Tests for neighbor list."""
 
 import numpy as np
 import pytest
@@ -31,6 +31,8 @@ class TestNeighborList:
             cutoffs.append(crit+eps)
         cutoffs = np.array(cutoffs)
 
+        # For each of the cutoff radii, check that the number of found
+        # neighbors within the cutoff is correct.
         cell = np.eye(3)
         positions = [[0, 0, 0]]
         species_dict = {'O':0}
@@ -52,6 +54,16 @@ class TestNeighborList:
             assert num_neighbors_found == num_neighbors_correct[icut]
     
     def test_neighbor_list_on_dimers(self):
+        """
+        Test whether the neighbor list implementation works correctly
+        for a set of dimers. The distance between the atom as well as the
+        cutoff radii are varied. The two atoms should only be registered
+        as neighbors if the distance is smaller than the cutoff.
+        """
+        # Define the used distances and cutoffs
+        # To avoid issues due to rounding, we make sure
+        # that the cutoffs are always off from the bond
+        # lengths.
         cell = np.eye(3) * 16
         eps = 1e-2
         Ndimers = 15
@@ -59,6 +71,9 @@ class TestNeighborList:
         cutoffs = np.linspace(1.+eps, 2.5+eps, Ndimers)
         species_dict = {'O':0}
 
+        # For each of the distances and cutoffs, check that
+        # the results obtained from the NeighborList class
+        # is correct.
         for dist in distances:
             positions = [[1,1,1],[1,1,1+dist]]
             frame = Atoms('O2', positions=positions, cell=cell, pbc=True)
