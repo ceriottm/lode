@@ -10,7 +10,7 @@ angular channel l=0,1,2,...,lmax is supported.
 import logging
 
 import numpy as np
-from scipy.specal import gammainc
+from scipy.special import gammainc
 
 try:
     from tqdm import tqdm
@@ -285,7 +285,7 @@ class DensityProjectionCalculator():
         #   (more precisely, the section 2 in supplementary infonformation)
         ###
         # Get k-vectors (also called reciprocal space or Fourier vectors)
-        kvecgen = KvectorGenerator(frame.get_cell(), 1.5 * np.pi / self.smearing)
+        kvecgen = KvectorGenerator(frame.get_cell(), 1.2 * np.pi / self.smearing)
         kvecgen.compute()
         kvectors = kvecgen.kvectors
         kvecnorms = kvecgen.kvector_norms
@@ -301,7 +301,7 @@ class DensityProjectionCalculator():
             G_k = 4 * np.pi / kvecnorms**2 * np.exp(-0.5 * (kvecnorms*self.smearing)**2)
         else:
             gammainc_upper = lambda n, x: 1 - gammainc(n, x)
-            prefac = 1.
+            prefac = 4 * np.pi
             peff = 3 - self.potential_exponent 
             G_k = prefac * gammainc_upper(peff/2, 0.5 * (kvecnorms*self.smearing)**2)
             G_k /= kvecnorms**peff
@@ -390,6 +390,7 @@ class DensityProjectionCalculator():
                 if self.potential_exponent == 0: # add constant term
                     I_nl_zero = self.radial_proj.radial_spline(0)
                     I_nl_zero /= np.sqrt(4 * np.pi)
+                    I_nl_zero *= (2*np.pi*self.smearing**2)**1.5 / (np.pi*self.smearing**2)**(3/4)
                     frame_features[i_center, i_chem_neigh, :, 0] += I_nl_zero[:,0] * global_factor
 
                 # Slow implementation using manual loops:
