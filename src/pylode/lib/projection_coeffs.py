@@ -445,7 +445,7 @@ class DensityProjectionCalculator():
                             if angular_l % 2 == 0:
                                 struc_factor_grad_all[l**2:(l+1)**2] = angular_phases[l] * fourier_imag
                             else:
-                                struc_factor_grad_all[l**2:(l+1)**2] = angular_phases[l] * fourier_real
+                                struc_factor_grad_all[l**2:(l+1)**2] = -angular_phases[l] * fourier_real
 
                         # Update x,y,z components
                         gradx = np.sum(k_dep_factor_reordered * struc_factor_grad_all * kx, axis=2)
