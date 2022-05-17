@@ -439,10 +439,10 @@ class DensityProjectionCalculator():
                     frame_features[i_center, i_chem_neigh] += 2 * global_factor * contr
                     
                     # Update gradients
-                    if self.compute_gradients:
+                    if self.compute_gradients and i_center != i_neigh:
                         # Phase factors depending on parity of l for gradients
-                        for angular_l in range(lmax+1):
-                            if angular_l % 2 == 0:
+                        for l in range(lmax+1):
+                            if l % 2 == 0:
                                 struc_factor_grad_all[l**2:(l+1)**2] = angular_phases[l] * fourier_imag
                             else:
                                 struc_factor_grad_all[l**2:(l+1)**2] = -angular_phases[l] * fourier_real
@@ -452,9 +452,13 @@ class DensityProjectionCalculator():
                         grady = np.sum(k_dep_factor_reordered * struc_factor_grad_all * ky, axis=2)
                         gradz = np.sum(k_dep_factor_reordered * struc_factor_grad_all * kz, axis=2)
                         i_grad = i_neigh + i_center * num_atoms
-                        frame_gradients[i_grad, 0, i_chem_neigh] += global_factor * gradx
-                        frame_gradients[i_grad, 1, i_chem_neigh] += global_factor * grady 
-                        frame_gradients[i_grad, 2, i_chem_neigh] += global_factor * gradz
+                        i_grad_center = i_center + i_center * num_atoms
+                        frame_gradients[i_grad, 0, i_chem_neigh] += 2 * global_factor * gradx
+                        frame_gradients[i_grad, 1, i_chem_neigh] += 2 * global_factor * grady 
+                        frame_gradients[i_grad, 2, i_chem_neigh] += 2 * global_factor * gradz
+                        frame_gradients[i_grad_center, 0, i_chem_neigh] -= 2 * global_factor * gradx
+                        frame_gradients[i_grad_center, 1, i_chem_neigh] -= 2 * global_factor * grady 
+                        frame_gradients[i_grad_center, 2, i_chem_neigh] -= 2 * global_factor * gradz
 
         if self.compute_gradients:
             return frame_features, frame_gradients
