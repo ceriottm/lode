@@ -311,8 +311,9 @@ class DensityProjectionCalculator():
             G_k = 4 * np.pi / kvecnorms**2 * np.exp(-0.5 * (kvecnorms*self.smearing)**2)
         else:
             prefac = 4 * np.pi
+            smeareff = self.potential_exponent * self.smearing
             peff = 3 - self.potential_exponent 
-            G_k = prefac * gammainc_upper_numerical(peff/2, 0.5 * (kvecnorms*self.smearing)**2)
+            G_k = prefac * gammainc_upper_numerical(peff/2, 0.5 * (kvecnorms*smeareff)**2)
             G_k /= kvecnorms**peff
 
         # Spherical harmonics evaluated at the k-vectors
