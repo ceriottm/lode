@@ -11,6 +11,7 @@ import logging
 
 import numpy as np
 from scipy.special import gammainc
+from scipy.integrate import quad
 
 try:
     from tqdm import tqdm
@@ -23,6 +24,15 @@ from .spherical_harmonics import evaluate_spherical_harmonics
 
 logger = logging.getLogger(__name__)
 
+def gammainc_upper_numerical(n, zz):
+    """
+    Implement upper incomplete Gamma function
+    """
+    yy = np.zeros_like(zz)
+    integrand = lambda x: x**(n-1) * np.exp(-x)
+    for iz, z in enumerate(zz):
+        yy[iz] = quad(integrand, z, np.inf)[0]
+    return yy
 
 class DensityProjectionCalculator():
     """
@@ -300,10 +310,9 @@ class DensityProjectionCalculator():
         elif self.potential_exponent == 1:
             G_k = 4 * np.pi / kvecnorms**2 * np.exp(-0.5 * (kvecnorms*self.smearing)**2)
         else:
-            gammainc_upper = lambda n, x: 1 - gammainc(n, x)
             prefac = 4 * np.pi
             peff = 3 - self.potential_exponent 
-            G_k = prefac * gammainc_upper(peff/2, 0.5 * (kvecnorms*self.smearing)**2)
+            G_k = prefac * gammainc_upper_numerical(peff/2, 0.5 * (kvecnorms*self.smearing)**2)
             G_k /= kvecnorms**peff
 
         # Spherical harmonics evaluated at the k-vectors
