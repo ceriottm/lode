@@ -184,11 +184,12 @@ class RadialBasis():
                             for n in range(nmax)])  # nmax x Nradial
             
             # Define normalizations of GTOs
-            norms = np.zeros((nmax,))
+            normalizations = np.zeros((nmax,))
             for n in range(nmax):
-                norms[n] = np.sqrt(2 / (sigma[n]**(3+2*n) * gamma(1.5 + n)))
+                normalizations[n] = np.sqrt(2 / (sigma[n]**(3+2*n) * gamma(1.5 + n)))
                 if self.radial_basis != 'gto_primitive':
-                    R_n[n] *= norms[n]
+                    R_n[n] *= normalizations[n]
+            self.normalizations = normalizations
 
             # Orthonormalize
             innerprods = np.zeros((nmax, nmax))
@@ -250,7 +251,7 @@ class RadialBasis():
 
         self.radial_spline = CubicSpline(kk, projcoeffs)
 
-    def compute_realspace_spline(self, Nradii = 100, smooth_cutoff_width=0.):
+    def compute_realspace_spline(self, Nspline = 100, smooth_cutoff_width=0.):
         """
         Numerically evaluate the double integral over the radius r and the
         angle theta (or its cosine) appearing in the real space evaluation
@@ -273,8 +274,8 @@ class RadialBasis():
         ls = np.arange(lmax+1)
 
         # Define the dimer distances over which to spline
-        rmin = 1e-5
-        radii = np.linspace(rmin, rcut, Nradii)
+        rmin = 1e-6
+        radii = np.linspace(rmin, rcut, Nspline)
 
         # If desired, add a smooth cutoff function that results in a
         # continuous behavior of the coefficients as atoms enter or
@@ -286,13 +287,40 @@ class RadialBasis():
         # contribution for a neighbor atom as a function of the
         # radial distance rij for different l-channels.
         # Note that only the monomial basis is supported.
-        integrals = np.zeros((Nradii, lmax+1))
+        """integrals = np.zeros((Nspline, lmax+1))
         for l in ls:
             for ir, rij in enumerate(radii):
-                density = lambda r, c: self.density_function(np.sqrt(r**2+rij**2-2*r*rij*c))
+                reff = lambda r, c: np.sqrt(r**2+rij**2-2*r*rij*c)
+                density = lambda r, c: self.density_function(reff(r, c))
                 prefacs = lambda r, c: f_cutoff(rij) * r**(2+l) * eval_legendre(l, c)
                 integrand = lambda r, c: prefacs(r,c) * density(r,c)
                 integrals[ir, l] = dblquad(integrand, 0, rcut, lambda x: -1, lambda x: 1)
+        """
+
+        #################################################
+        # General version that works for any radial basis
+        #################################################
+        integrals = np.zeros((Nspline, nmax, lmax + 1))
+        radial_basis = 'gto'
+        for ir, rij in enumerate(radii):
+            for l in range(lmax+1):
+                prefac = lambda r, c: f_cutoff(rij) * r**2 * eval_legendre(l, c)
+                dist = lambda r, c: np.sqrt(r**2+rij**2-2*r*rij*c)
+                density = lambda r, c: self.density_function(dist(r, c))
+                if radial_basis == 'gto':
+                    transformation = self.orthonormalization_matrix
+                    for n in range(nmax):
+                        R_n_prim = lambda r: r**n*np.exp(-0.5*r**2/self.smearing**2)
+                        R_n = lambda r: self.normalizations[n] * R_n_prim(r)
+                        integrand = lambda r,c: prefac(r,c)*R_n(r)*density(r,c)
+                        integrals[ir, n, l] = dblquad(integrand, 0, rcut, lambda x: -1, lambda x: 1)
+                    integrals[ir, :, l] = transformation @ integrals[ir, :, l]
+
+                elif radial_basis == 'monomial':
+                    normalization = np.sqrt((3 + 2*l) / (rcut**(3 + 2*l)))
+                    R_n = lambda r: normalization * r**l
+                    integrand = lambda r,c: prefac(r,c)*R_n(r)*density(r,c)
+                    integrals[ir, 0, l] = dblquad(integrand, 0, rcut, lambda x: -1, lambda x: 1)
 
         # Generate spline class object
         self.radial_spline_realspace = CubicSpline(radii, integrals)
