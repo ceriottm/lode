@@ -49,16 +49,17 @@ class TestCoulombRandomStructures():
         forces_target = np.array([frame.arrays["forces"] for frame in frames])
 
         # Define hyperparameters to run tests
-        rcut = 0.1
+        rcut = 0.2
         hypers = {
-            'smearing': .3,
+            'smearing': .4,
             'max_angular': 1,
             'max_radial': 1,
             'cutoff_radius': rcut,
             'potential_exponent': 1,
             'radial_basis': 'monomial',
             'compute_gradients': True,
-            'fast_implementation': True
+            'fast_implementation': True,
+            'subtract_center_contribution':True
         }
 
         # Run the slow implementation using manual for loops
@@ -108,21 +109,22 @@ class TestCoulombRandomStructures():
 
         # Prefactor used to convert into Gaussian units
         # assuming that the cutoff is sufficiently small
+        # For the energy, an extra factor of 1/2 takes into
+        # account that all (i,j) pairs are counted twice
         prefac_e = np.sqrt(3 / (4 * np.pi * rcut**3))
         prefac_f = np.sqrt(15 / (4 * np.pi * rcut**5))
-        energy *= prefac_e
+        energy *= prefac_e / 2
         forces *= prefac_f
 
-        # TODO: remove overcounting of i-j pairs within unit cell
-
         # Make sure that the values agree
-        # TODO: unit conversions and prefactors of forces
-        # For now, use temporary test that always passes
-        assert_allclose(forces_target, forces, rtol=0.3)
+        rtol_e = 1e-2 * np.std(energy_target)
+        rtol_f = 1e-1 * np.std(forces_target)
+        assert_allclose(energy_target, energy, rtol = 1e-3)
+        assert_allclose(forces_target, forces, rtol = 3e-2)
 
         # Average rel. error of forces should be less than 2%
         diff = np.abs(forces - forces_target).flatten()
-        assert np.mean(diff/forces.flatten()) < 2e-2
+        assert np.mean(diff/forces.flatten()) < 1e-2
 
 
 class TestMadelung:
