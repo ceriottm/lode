@@ -118,6 +118,7 @@ class DensityProjectionCalculator_Realspace():
         self.subtract_center_contribution = subtract_center_contribution
         self.fast_implementation = fast_implementation
 
+        print('Start real space implementation')
         # Make sure that the provided parameters are consistent
         if self.potential_exponent not in [0, 1]:
             raise ValueError("Potential exponent has to be one of 0 or 1!")
@@ -143,7 +144,8 @@ class DensityProjectionCalculator_Realspace():
                                        self.radial_basis,
                                        potential_exponent,
                                        self.subtract_center_contribution)
-        self.radial_proj.compute_realspace_spline()
+        self.radial_proj.compute(1.0)
+        self.radial_proj.compute_realspace_spline_from_analytical()
 
     def transform(self, frames, show_progress=False):
         """
@@ -224,7 +226,7 @@ class DensityProjectionCalculator_Realspace():
             frame_generator = self.frames
 
         for i_frame, frame in enumerate(frame_generator):
-
+            print('Frame number = ', i_frame)
             number_of_atoms = self.num_atoms_per_frame[i_frame]
             results = self._transform_single_frame(frame)
 
@@ -284,23 +286,33 @@ class DensityProjectionCalculator_Realspace():
 
             # Loop over all possible neighbor species
             neighbors_i = neighbor_list.neighbor_list[i_center]
+
+            # neighbors_i is a list, where the 0-th entry contains
+            # the neighbor information about all neighbors of "species 0",
+            # the next entry about all neighbors of "species 1", etc.,
+            # where species 0,1,2,... are defined in the species_dict
+            # Thus, looping over the entries of neighbors_i separates
+            # the different chemical species automatically.
             for i_chem_neigh, neighbors_ia in enumerate(neighbors_i):
-                # Make sure that neighbors of this species are present
-                if neighbors_ia['number_of_neighbors'] == 0:
+                # Check whether neighbors of this species are present
+                if neighbors_ia.entries['number_of_neighbors'] == 0:
                     continue
 
                 # Radial contributions
-                distances = neighbors_ia['pair_distances']
-                I_nl = self.radial_proj.radial_spline(distances) # shape N x (lmax+1)
+                distances = neighbors_ia.entries['pair_distances']
+                I_nl = self.radial_proj.radial_spline_realspace(distances) # shape N x nmax x (lmax+1)
 
                 # Angular contributions
-                vectors = neighbors_ia['pair_vectors']
-                sph_harm = evaluate_spherical_harmonics(vectors, lmax) # shape N x (lmax+1)^2
+                vectors = neighbors_ia.entries['pair_vectors']
+                sph_harm = evaluate_spherical_harmonics(vectors, lmax).T # shape N x (lmax+1)^2
 
-                for l in range(lmax+1):
-                    coeff = np.sum(I_nl[l] * sph_harm[:,l**2:(l+1)**2], axis=0)
-                    frame_features[i_center, i_chem_neigh, 0,
-                                   l**2:(l+1)**2] += coeff
+                for n in range(nmax):
+                    I_nl_n_fixed = I_nl[:, n, :].T
+                    for l in range(lmax+1):
+                        summand = I_nl_n_fixed[l] * sph_harm[l**2:(l+1)**2]
+                        coeff = np.sum(summand, axis=1)
+                        frame_features[i_center, i_chem_neigh, n, l**2:(l+1)**2] += coeff
+                        
 
             # If required: set gradients to correct values 
             # TODO: implement this

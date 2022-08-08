@@ -5,11 +5,12 @@ Created on Tue Mar 16 19:42:22 2021
 @author: kevin
 """
 
+from tempfile import tempdir
 import numpy as np
 from scipy.interpolate import CubicSpline
 from scipy.integrate import dblquad
 from scipy.special import erf, spherical_jn  # arguments (n,z)
-from scipy.special import eval_legendre, gamma, gammainc
+from scipy.special import eval_legendre, gamma, gammainc, hyp1f1
 
 try:
     from scipy.integrate import simpson
@@ -125,7 +126,9 @@ class RadialBasis():
 
         # Preparation for the extra steps in case the contribution to
         # the density by the center atom is to be subtracted
-        if self.subtract_center_contribution:
+        # TODO: For now, always define the density function since it
+        # will also be used in the real space implementation.
+        if self.subtract_center_contribution or True:
             if potential_exponent == 0:
                 self.density_function = lambda x: gaussian_L2(x, smearing)
             elif potential_exponent == 1:
@@ -251,7 +254,55 @@ class RadialBasis():
 
         self.radial_spline = CubicSpline(kk, projcoeffs)
 
-    def compute_realspace_spline(self, Nspline = 100, smooth_cutoff_width=0.):
+    def compute_realspace_spline_from_analytical(self, Nspline=100, smooth_cutoff_width=0.):
+        # Define shortcuts for commonly used variables
+        nmax = self.max_radial
+        lmax = self.max_angular
+        rcut = self.cutoff_radius
+        smearing = self.smearing
+        width = smooth_cutoff_width
+        transformation = self.orthonormalization_matrix
+        ls = np.arange(lmax+1)
+
+        # Define the dimer distances over which to spline
+        rmin = 1e-6
+        radii = np.linspace(rmin, rcut, Nspline)
+
+        # Auxilary quantity: widths of GTO basis functions
+        gto_sigma = np.ones(nmax, dtype=float)
+        for i in range(1, nmax):
+            gto_sigma[i] = np.sqrt(i)
+        gto_sigma *= rcut / nmax
+
+        # Compute radial integrals for each (n,l) for the GTO basis
+        integrals = np.zeros((Nspline, nmax, lmax + 1))
+        for l in range(lmax+1):
+            # Define auxilary quantities and prefactors
+            a = 1. / (2 * smearing**2)
+            lplus3half = l + 1.5
+            prefac_global = np.pi**1.5 * a**l / gamma(lplus3half)
+            prefac_global *= radii**l * np.exp(-a*radii**2)
+            prefac_global /= (np.pi * smearing**2)**(3/4)
+
+            # Start main loop
+            featvec = np.zeros((Nspline, nmax))
+            for n in range(nmax):
+                nlplus3half = (3 + n + l) / 2
+                b = 1. / (2 * gto_sigma[n]**2)
+                prefac_n_dep = gamma(nlplus3half) / (a+b)**nlplus3half
+                hyp = hyp1f1(nlplus3half, lplus3half, a**2*radii**2/(a+b))
+                hyp *= self.normalizations[n] * prefac_n_dep
+                featvec[:, n] = hyp
+            
+            featvec_orthonormal = (transformation @ featvec.T).T
+
+            for n in range(nmax):
+                integrals[:, n, l] = prefac_global * featvec_orthonormal[:, n]
+
+        # Generate spline class object
+        self.radial_spline_realspace = CubicSpline(radii, integrals)
+
+    def compute_realspace_spline(self, Nspline = 5, smooth_cutoff_width=0.):
         """
         Numerically evaluate the double integral over the radius r and the
         angle theta (or its cosine) appearing in the real space evaluation
@@ -270,6 +321,7 @@ class RadialBasis():
         nmax = self.max_radial
         lmax = self.max_angular
         rcut = self.cutoff_radius
+        smearing = self.smearing
         width = smooth_cutoff_width
         ls = np.arange(lmax+1)
 
@@ -301,26 +353,53 @@ class RadialBasis():
         # General version that works for any radial basis
         #################################################
         integrals = np.zeros((Nspline, nmax, lmax + 1))
-        radial_basis = 'gto'
+        radial_basis = self.radial_basis
+
+        # Define functions used for the integration bounds over
+        # the angle theta. In practice, the integral is parametrized
+        # in terms of cos(theta) which goes from -1 to 1.
+        # Due to the specific syntax of scipy.integrate.dblquad,
+        # it is required to pass the bounds (which are fixed numbers)
+        # as functions.
+        cosmax = lambda x: -1
+        cosmin = lambda x: 1
+
+        
+        # Generate length scales sigma_n for R_n(x)
+        if radial_basis == 'gto':
+            sigma = np.ones(nmax, dtype=float)
+            for i in range(1, nmax):
+                sigma[i] = np.sqrt(i)
+            sigma *= rcut / nmax
+
+        # Compute the radial and angular integrals numerically
+        # for different values of the pair distance r_ij and
+        # store the results in an array to generate the splines later on.
         for ir, rij in enumerate(radii):
+            print(f'Radial distance {ir+1} out of {len(radii)}')
             for l in range(lmax+1):
                 prefac = lambda r, c: f_cutoff(rij) * r**2 * eval_legendre(l, c)
-                dist = lambda r, c: np.sqrt(r**2+rij**2-2*r*rij*c)
+                dist = lambda r, c: np.sqrt(r**2+rij**2-2*r*rij*c + 1e-13)
                 density = lambda r, c: self.density_function(dist(r, c))
                 if radial_basis == 'gto':
+                    print('Use gto basis')
                     transformation = self.orthonormalization_matrix
                     for n in range(nmax):
-                        R_n_prim = lambda r: r**n*np.exp(-0.5*r**2/self.smearing**2)
+                        R_n_prim = lambda r: r**n*np.exp(-0.5*r**2/sigma[n]**2)
                         R_n = lambda r: self.normalizations[n] * R_n_prim(r)
                         integrand = lambda r,c: prefac(r,c)*R_n(r)*density(r,c)
-                        integrals[ir, n, l] = dblquad(integrand, 0, rcut, lambda x: -1, lambda x: 1)
+                        integrals[ir, n, l] = dblquad(integrand, 0, rcut, cosmin, cosmax, epsabs=1e-3, epsrel=1e-3)[0]
                     integrals[ir, :, l] = transformation @ integrals[ir, :, l]
 
                 elif radial_basis == 'monomial':
+                    print('use monomials')
                     normalization = np.sqrt((3 + 2*l) / (rcut**(3 + 2*l)))
                     R_n = lambda r: normalization * r**l
                     integrand = lambda r,c: prefac(r,c)*R_n(r)*density(r,c)
-                    integrals[ir, 0, l] = dblquad(integrand, 0, rcut, lambda x: -1, lambda x: 1)
+                    integrals[ir, 0, l] = dblquad(integrand, 0, rcut, lambda x: -1, lambda x: 1)[0]
 
         # Generate spline class object
         self.radial_spline_realspace = CubicSpline(radii, integrals)
+
+
+

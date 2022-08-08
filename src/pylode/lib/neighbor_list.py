@@ -48,9 +48,12 @@ class NeighborList():
 
     def build_neighborlist(self):
         """
-        Primitive implementation of neighbor list not taking into account
-        periodic images. All the pairs are counted twice in this version.
-        This makes the actual implementation slower but leads to a simpler
+        Primitive implementation of neighbor list.
+        Currently, the original atom + 26 periodic images are considered.
+        Every periodic image that falls within the cutoff is included
+        as a neighbor.
+        Note that all pairs are counted twice in this version.
+        This makes the actual implementation slower but leads to simpler code.
         code.
         """
         # Initialization

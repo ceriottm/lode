@@ -117,12 +117,10 @@ class TestCoulombRandomStructures():
         forces *= prefac_f
 
         # Make sure that the values agree
-        rtol_e = 1e-2 * np.std(energy_target)
-        rtol_f = 1e-1 * np.std(forces_target)
         assert_allclose(energy_target, energy, rtol = 1e-3)
         assert_allclose(forces_target, forces, rtol = 3e-2)
 
-        # Average rel. error of forces should be less than 2%
+        # Average rel. error of forces should be less than 1%
         diff = np.abs(forces - forces_target).flatten()
         assert np.mean(diff/forces.flatten()) < 1e-2
 
