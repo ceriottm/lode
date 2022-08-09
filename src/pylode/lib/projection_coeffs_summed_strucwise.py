@@ -350,7 +350,7 @@ class DensityProjectionCalculatorSummed():
             sin_summed = np.sum(sines[:,indices_species], axis=1)
             for j in range(num_atoms):
                 strucfac_real_summed[:, a_center, j] = cos_summed * cosines[:,j] + sin_summed * sines[:,j]
-                strucfac_imag_summed[:, a_center, j] = sin_summed * cosines[:,j] + cos_summed * sines[:,j]
+                strucfac_imag_summed[:, a_center, j] = sin_summed * cosines[:,j] - cos_summed * sines[:,j]
     
         ###
         # Step 3: Main loop:
@@ -371,7 +371,7 @@ class DensityProjectionCalculatorSummed():
             num_this_species = np.sum(indices_species)
             
             if self.subtract_center_contribution:
-                center_contrib = self.radial_proj.center_contributions
+                center_contrib = self.radial_proj.center_contributions.copy()
                 center_contrib *= num_this_species
                 frame_features[a_center, a_center, :, 0] -= center_contrib
             
