@@ -177,4 +177,4 @@ class TestSphericalHarmonics:
             sph_harm_check[:,i] =  evaluate_spherical_harmonics(vecs, lmax=2).T
 
         # Check agreement of the pyLODE spherical harmonics with the exact values
-        assert_allclose(sph_harm_exact, sph_harm_check, rtol=1e-15, atol=3e-16) 
+        assert_allclose(sph_harm_exact, sph_harm_check, rtol=1e-15, atol=6e-16) 
