@@ -355,6 +355,9 @@ class DensityProjectionCalculator():
             for j in range(num_atoms):
                 strucfac_real[:, i, j] = cosines[:,i] * cosines[:,j] + sines[:,i] * sines[:,j]
                 strucfac_imag[:, i, j] = sines[:,i] * cosines[:,j] - cosines[:,i] * sines[:,j]
+        
+        strucfac_real *= 2
+        strucfac_imag *= 2
  
         ###
         # Step 3: Main loop:
@@ -418,16 +421,16 @@ class DensityProjectionCalculator():
                             else:
                                 struc_factor[l**2:(l+1)**2] = angular_phases[l] * fourier_imag
     
-                        frame_features[i_center, i_chem_neigh] += 2 * global_factor * struc_factor * k_dep_factor[ik]
+                        frame_features[i_center, i_chem_neigh] += global_factor * struc_factor * k_dep_factor[ik]
     
                         # Update gradients
                         if self.compute_gradients:
                             # Phase factors depending on parity of l for gradients
-                            for angular_l in range(lmax+1):
-                                if angular_l % 2 == 0:
+                            for l in range(lmax+1):
+                                if l % 2 == 0:
                                     struc_factor_grad[l**2:(l+1)**2] = angular_phases[l] * fourier_imag
                                 else:
-                                    struc_factor_grad[l**2:(l+1)**2] = angular_phases[l] * fourier_real
+                                    struc_factor_grad[l**2:(l+1)**2] = -angular_phases[l] * fourier_real
     
                             # Update x,y,z components
                             frame_gradients[i_neigh + i_center * num_atoms, 0, i_chem_neigh] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[0]
@@ -446,7 +449,7 @@ class DensityProjectionCalculator():
                             struc_factor_all[l**2:(l+1)**2] = angular_phases[l] * fourier_imag
 
                     contr = np.sum(k_dep_factor_reordered * struc_factor_all, axis=2)
-                    frame_features[i_center, i_chem_neigh] += 2 * global_factor * contr
+                    frame_features[i_center, i_chem_neigh] += global_factor * contr
                     
                     # Update gradients
                     if self.compute_gradients and i_center != i_neigh:
@@ -463,12 +466,12 @@ class DensityProjectionCalculator():
                         gradz = np.sum(k_dep_factor_reordered * struc_factor_grad_all * kz, axis=2)
                         i_grad = i_neigh + i_center * num_atoms
                         i_grad_center = i_center + i_center * num_atoms
-                        frame_gradients[i_grad, 0, i_chem_neigh] += 2 * global_factor * gradx
-                        frame_gradients[i_grad, 1, i_chem_neigh] += 2 * global_factor * grady 
-                        frame_gradients[i_grad, 2, i_chem_neigh] += 2 * global_factor * gradz
-                        frame_gradients[i_grad_center, 0, i_chem_neigh] -= 2 * global_factor * gradx
-                        frame_gradients[i_grad_center, 1, i_chem_neigh] -= 2 * global_factor * grady 
-                        frame_gradients[i_grad_center, 2, i_chem_neigh] -= 2 * global_factor * gradz
+                        frame_gradients[i_grad, 0, i_chem_neigh] += global_factor * gradx
+                        frame_gradients[i_grad, 1, i_chem_neigh] += global_factor * grady 
+                        frame_gradients[i_grad, 2, i_chem_neigh] += global_factor * gradz
+                        frame_gradients[i_grad_center, 0, i_chem_neigh] -= global_factor * gradx
+                        frame_gradients[i_grad_center, 1, i_chem_neigh] -= global_factor * grady 
+                        frame_gradients[i_grad_center, 2, i_chem_neigh] -= global_factor * gradz
 
         if self.compute_gradients:
             return frame_features, frame_gradients
