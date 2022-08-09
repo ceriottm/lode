@@ -18,6 +18,7 @@ from ase.io import read
 
 # Library specific imports
 from pylode.lib.projection_coeffs import DensityProjectionCalculator
+from pylode.lib.projection_coeffs_summed_strucwise import DensityProjectionCalculatorSummed
 
 REF_STRUCTS = os.path.join(os.path.dirname(__file__), 'reference_structures')
 
@@ -320,6 +321,51 @@ class TestSuperCell():
         assert_allclose((features[:, 1]).round(10),
                         (features_super[:, 1::2].mean(axis=1)).round(10))
 
+class TestSummedImplementation():
+    """
+    Class checking the summed implementation.
+    """
+
+    def test_agreement_summed_implementation(self):
+        # Use the frames of the Coulomb test that contain
+        # 3 frames of NaCl with 8 atoms each.
+        # The first 4 atoms are Na and the last 4 Cl.
+        # This makes sure that the fast implementation also
+        # works for multi-species systems having no special
+        # symmetry.
+        frames = read(os.path.join(REF_STRUCTS, "coulomb_test_frames.xyz"),
+                      ":")
+
+        # Define the hyperparameters
+        lmax = 4
+        hypers = {
+            'smearing':1.,
+            'max_angular':lmax,
+            'max_radial':1,
+            'cutoff_radius':0.1,
+            'potential_exponent':1,
+            'radial_basis': 'monomial',
+            'compute_gradients':False,
+            'fast_implementation':True,
+            'subtract_center_contribution':True
+        }
+
+        calculator = DensityProjectionCalculator(**hypers)
+        calculator.transform(frames)
+        descriptors = calculator.features
+
+        calculator_summed = DensityProjectionCalculatorSummed(**hypers)
+        calculator_summed.transform(frames)
+        descriptors_summed = calculator_summed.features
+
+        for iframe in range(len(frames)):
+            # Na atoms
+            sum_from_normal_Na = np.sum(descriptors[8*iframe:8*iframe+4], axis=0)
+            assert_allclose(descriptors_summed[iframe,0], sum_from_normal_Na, atol=2e-12)
+            # Cl atoms
+            sum_from_normal_Cl = np.sum(descriptors[8*iframe+4:8*iframe+8], axis=0)
+            assert_allclose(descriptors_summed[iframe,1], sum_from_normal_Cl, atol=2e-12)
+
 
 class TestSlowVSFastImplementation():
     """Class checking that the slow implementation using
@@ -352,6 +398,7 @@ class TestSlowVSFastImplementation():
             'fast_implementation': False
         }
 
+        
         # Run the slow implementation using manual for loops
         # This version is kept for comparison with the C++/Rust
         # versions in which the sums need to be looped explicitly.
