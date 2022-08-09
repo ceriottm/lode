@@ -433,9 +433,14 @@ class DensityProjectionCalculator():
                                     struc_factor_grad[l**2:(l+1)**2] = -angular_phases[l] * fourier_real
     
                             # Update x,y,z components
-                            frame_gradients[i_neigh + i_center * num_atoms, 0, i_chem_neigh] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[0]
-                            frame_gradients[i_neigh + i_center * num_atoms, 1, i_chem_neigh] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[1]
-                            frame_gradients[i_neigh + i_center * num_atoms, 2, i_chem_neigh] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[2]
+                            i_grad = i_neigh + i_center * num_atoms
+                            i_grad_center = i_center + i_center * num_atoms
+                            frame_gradients[i_grad, 0, i_chem_neigh] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[0]
+                            frame_gradients[i_grad, 1, i_chem_neigh] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[1]
+                            frame_gradients[i_grad, 2, i_chem_neigh] += global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[2]
+                            frame_gradients[i_grad_center, 0, i_chem_neigh] -= global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[0]
+                            frame_gradients[i_grad_center, 1, i_chem_neigh] -= global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[1]
+                            frame_gradients[i_grad_center, 2, i_chem_neigh] -= global_factor * struc_factor_grad * k_dep_factor[ik] * kvector[2]
                     
                 else: # use fast implementation
                     fourier_real = strucfac_real[:, i_center, i_neigh]
