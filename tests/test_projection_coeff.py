@@ -366,6 +366,73 @@ class TestSummedImplementation():
             sum_from_normal_Cl = np.sum(descriptors[8*iframe+4:8*iframe+8], axis=0)
             assert_allclose(descriptors_summed[iframe,1], sum_from_normal_Cl, atol=2e-12)
 
+class TestGradients():
+    """
+    Class checking that the gradients are implemented correctly.
+    """
+    def test_gradients(self):
+        # Define original structure, which is a cluster of 4 atoms
+        # without any special symmetries.
+        cell = 15 * np.eye(3)
+        frames = []
+        pos_0 = np.array([[1,1,1],[3.1,1,1],[3,3.2,1.3],[2.3,3.5,3.5]])
+        frames.append(Atoms('O4', positions=pos_0, cell=cell, pbc=True))
+
+        # Define structures in which each of the 4 atoms is displaced
+        # by a distance dx in the x,y and z directions, leading to
+        # 4 x 3 = 12 extra structures (13 in total).
+        dx = 1e-7
+        for iatom in range(4):
+            for direction in range(3):
+                pos_new = pos_0.copy()
+                pos_new[iatom, direction] += dx
+                frames.append(Atoms('O4', positions=pos_new, cell=cell, pbc=True))
+
+        # Define calculator and compute features
+        nmax = 3
+        lmax = 2
+        rcut = 6.
+        smearing = 1.
+        hypers = {
+            'smearing':smearing,
+            'max_angular':lmax,
+            'max_radial':nmax,
+            'cutoff_radius':rcut,
+            'potential_exponent':0,
+            'radial_basis': 'gto',
+            'compute_gradients':True,
+            'subtract_center_contribution':False,
+            'fast_implementation':True
+            }
+        calculator_pylode = DensityProjectionCalculator(**hypers)
+        gradients_finite_difference = []
+        calculator_pylode.transform(frames)
+        features_pylode = calculator_pylode.features[:,0]
+
+        # Get the features of the original (not distorted) frame
+        # used for the finite difference calculation and its
+        # gradients.
+        feat_ref = features_pylode[:4]
+        gradients_all = calculator_pylode.feature_gradients[:,:,0]
+        gradients_pylode_firstframe = gradients_all[:16,:]
+
+        # Compute the gradients using the finite difference method
+        gradients_finite_difference = np.zeros_like(gradients_pylode_firstframe)
+        atompair_idx = 0
+        for i_center in range(4):
+            for i_neigh in range(4):
+                for i_direction in range(3):
+                    idx_feat = 4 + 12*i_neigh + 4*i_direction + i_center
+                    feat_new = features_pylode[idx_feat].copy()
+                    grad_finite = (feat_new - feat_ref[i_center]) / dx
+                    gradients_finite_difference[atompair_idx,i_direction] = grad_finite
+                
+                atompair_idx += 1
+
+        # Check that the coefficients agree.
+        # Note that due to the finite difference approach to gradients,
+        # an absolute error on the order of the displacement dx is expected.
+        assert_allclose(gradients_finite_difference, gradients_pylode_firstframe, rtol=1e-12, atol=2*dx)
 
 class TestSlowVSFastImplementation():
     """Class checking that the slow implementation using
@@ -431,5 +498,5 @@ class TestSlowVSFastImplementation():
                         descriptors_fast,
                         rtol=1e-14,
                         atol=2e-13)
-        #assert_allclose(gradients_slow, gradients_fast, rtol=1e-14, atol=1e-14)
+        assert_allclose(gradients_slow, gradients_fast, rtol=1e-14, atol=1e-14)
         assert (dt_slow > 3 * dt_fast)
