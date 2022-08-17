@@ -10,7 +10,7 @@ angular channel l=0,1,2,...,lmax is supported.
 import logging
 
 import numpy as np
-from scipy.special import gammainc
+from scipy.special import gamma
 from scipy.integrate import quad
 
 try:
@@ -33,6 +33,24 @@ def gammainc_upper_numerical(n, zz):
     for iz, z in enumerate(zz):
         yy[iz] = quad(integrand, z, np.inf)[0]
     return yy
+
+
+def gammainc_upper_numerical(n, zz):
+    """
+    Implement upper incomplete Gamma function
+    """
+    yy = np.zeros_like(zz)
+    integrand = lambda x: x**(n-1) * np.exp(-x)
+    for iz, z in enumerate(zz):
+        yy[iz] = quad(integrand, z, np.inf)[0]
+    return yy
+
+
+def density_fourierspace(p, k, smearing):
+    peff = 3-p
+    prefac = np.pi**1.5 * 2**peff / gamma(p/2) / np.pi**peff
+    return prefac * gammainc_upper_numerical(peff/2, 0.5*(np.pi*k*smearing)**2) / k**peff
+
 
 class DensityProjectionCalculator():
     """
@@ -310,11 +328,7 @@ class DensityProjectionCalculator():
         elif self.potential_exponent == 1:
             G_k = 4 * np.pi / kvecnorms**2 * np.exp(-0.5 * (kvecnorms*self.smearing)**2)
         else:
-            prefac = 4 * np.pi
-            smeareff = self.potential_exponent * self.smearing
-            peff = 3 - self.potential_exponent 
-            G_k = prefac * gammainc_upper_numerical(peff/2, 0.5 * (kvecnorms*smeareff)**2)
-            G_k /= kvecnorms**peff
+            G_k = density_fourierspace(self.potential_exponent, kvecnorms, self.smearing)
 
         # Spherical harmonics evaluated at the k-vectors
         # for angular projection
@@ -404,6 +418,19 @@ class DensityProjectionCalculator():
                     I_nl_zero = self.radial_proj.radial_spline(0)
                     I_nl_zero /= np.sqrt(4 * np.pi)
                     I_nl_zero *= (2*np.pi*self.smearing**2)**1.5 / (np.pi*self.smearing**2)**(3/4)
+                    frame_features[i_center, i_chem_neigh, :, 0] += I_nl_zero[:,0] * global_factor
+                
+                # For van der Waals interactions decaying as 1/r^6,
+                # the potential decays fast enough that the Fourier
+                # transform of the density at k=0 is well defined.
+                # We add this contribution.
+                elif self.potential_exponent in [4, 5, 6]:
+                    peff = 3 - self.potential_exponent
+                    prefac = np.pi**1.5 * 2**peff / gamma(self.potential_exponent/2) # global prefactor appearing in Fourier transformed density
+                    density_at_kzero = prefac * 2**((self.potential_exponent-1)/2) / (-peff) * self.smearing**(-peff) 
+                    I_nl_zero = self.radial_proj.radial_spline(0)
+                    I_nl_zero /= np.sqrt(4 * np.pi) # spherical harmonics Y_00
+                    I_nl_zero *= density_at_kzero
                     frame_features[i_center, i_chem_neigh, :, 0] += I_nl_zero[:,0] * global_factor
 
                 # Slow implementation using manual loops:
