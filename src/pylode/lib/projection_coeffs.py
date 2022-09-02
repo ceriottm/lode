@@ -171,7 +171,7 @@ class DensityProjectionCalculator():
             subtract_self=self.subtract_center_contribution,
             potential_exponent=self.potential_exponent)
 
-        self.radial_proj.compute(1.5*np.pi/self.smearing)
+        self.radial_proj.compute(2*np.pi/self.smearing)
 
     def transform(self, frames, show_progress=False):
         """
@@ -217,7 +217,7 @@ class DensityProjectionCalculator():
 
         # Generate a dictionary to map atomic species to array indices
         # In general, the species are sorted according to atomic number
-        # and assigned the array indices 0,1,2,...
+        # and assigned the array indices 0, 1, 2,...
         # Example: for H2O: H is mapped to 0 and O is mapped to 1.
         species = set()
         for frame in frames:
@@ -316,7 +316,7 @@ class DensityProjectionCalculator():
         #   (more precisely, the section 2 in supplementary infonformation)
         ###
         # Get k-vectors (also called reciprocal space or Fourier vectors)
-        kvecgen = KvectorGenerator(frame.get_cell(), 1.5 * np.pi / self.smearing)
+        kvecgen = KvectorGenerator(frame.get_cell(), 1.2 * np.pi / self.smearing)
         kvecgen.compute()
         kvectors = kvecgen.kvectors
         kvecnorms = kvecgen.kvector_norms
