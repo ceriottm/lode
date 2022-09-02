@@ -43,7 +43,7 @@ def longrange_general(x, smearing, p):
     """
     Smeared 1/r^p density
     """
-    lim = 1./(gamma(p/2+1) * (2*smearing**2)**(p/2))
+    lim = 1. / (2*smearing**2)**(p/2) / gamma(p/2+1)
     with np.errstate(invalid='ignore'):
         f_bare = lambda x: gammainc(p/2, 0.5*(x/smearing)**2) / x**p
         res = np.nan_to_num(f_bare(x), nan=lim, posinf=lim)
@@ -120,6 +120,7 @@ class RadialBasis():
         self.max_angular = max_angular
         self.cutoff_radius = cutoff_radius
         self.radial_basis = radial_basis.lower()
+        self.potential_exponent = potential_exponent
 
         # Store the optional parameters related to the self contribution
         self.subtract_center_contribution = subtract_self
@@ -134,7 +135,7 @@ class RadialBasis():
             elif potential_exponent == 1:
                 self.density_function = lambda x: erfxx(x, smearing)
             elif potential_exponent in [2, 3, 4, 5, 6]:
-                self.density_function = lambda x: longrange_general(x, smearing, self.potential_exponent)
+                self.density_function = lambda x: longrange_general(x, self.smearing, self.potential_exponent)
             else:
                 raise ValueError(f"Potential exponent is {potential_exponent}"
                                  " but has to be one of 0, 1, 2, ..., 6")
