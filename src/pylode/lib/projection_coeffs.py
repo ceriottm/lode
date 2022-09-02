@@ -163,11 +163,14 @@ class DensityProjectionCalculator():
         # only related to the choice of radial basis, namely the
         # projections of the spherical Bessel functions j_l(kr) onto the
         # radial basis and (if desired) the center contributions
-        self.radial_proj = RadialBasis(self.max_radial, self.max_angular,
-                                       self.cutoff_radius, self.smearing,
-                                       self.radial_basis,
-                                       self.potential_exponent,
-                                       self.subtract_center_contribution)
+        self.radial_proj = RadialBasis(max_radial = self.max_radial,
+            max_angular=self.max_angular,
+            cutoff_radius=self.cutoff_radius,
+            smearing=self.smearing,
+            radial_basis=self.radial_basis,
+            subtract_self=self.subtract_center_contribution,
+            potential_exponent=self.potential_exponent)
+
         self.radial_proj.compute(1.5*np.pi/self.smearing)
 
     def transform(self, frames, show_progress=False):
@@ -401,7 +404,6 @@ class DensityProjectionCalculator():
             # species channel that agrees with the center atom.
             if self.subtract_center_contribution:
                 center_contrib = self.radial_proj.center_contributions
-                print('Center contribution = ', center_contrib)
                 frame_features[i_center, i_chem_center, :, 0] -= center_contrib
 
             # Loop over all atoms in the structure (including central atom)
@@ -433,7 +435,6 @@ class DensityProjectionCalculator():
                     I_nl_zero /= np.sqrt(4 * np.pi) # spherical harmonics Y_00
                     I_nl_zero *= density_at_kzero
                     frame_features[i_center, i_chem_neigh, :, 0] += I_nl_zero[:,0] * global_factor
-                    ref_value = k_dep_factor[0, :, 0]
 
                 # Slow implementation using manual loops:
                 # this version is kept for better comparison with the C++ ver.
