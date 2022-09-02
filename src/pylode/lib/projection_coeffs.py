@@ -48,8 +48,8 @@ def gammainc_upper_numerical(n, zz):
 
 def density_fourierspace(p, k, smearing):
     peff = 3-p
-    prefac = np.pi**1.5 * 2**peff / gamma(p/2) / np.pi**peff
-    return prefac * gammainc_upper_numerical(peff/2, 0.5*(np.pi*k*smearing)**2) / k**peff
+    prefac = np.pi**1.5 * 2**peff / gamma(p/2)
+    return prefac * gammainc_upper_numerical(peff/2, 0.5*(k*smearing)**2) / k**peff
 
 
 class DensityProjectionCalculator():
@@ -166,9 +166,9 @@ class DensityProjectionCalculator():
         self.radial_proj = RadialBasis(self.max_radial, self.max_angular,
                                        self.cutoff_radius, self.smearing,
                                        self.radial_basis,
-                                       potential_exponent,
+                                       self.potential_exponent,
                                        self.subtract_center_contribution)
-        self.radial_proj.compute(np.pi/self.smearing)
+        self.radial_proj.compute(1.5*np.pi/self.smearing)
 
     def transform(self, frames, show_progress=False):
         """
@@ -313,7 +313,7 @@ class DensityProjectionCalculator():
         #   (more precisely, the section 2 in supplementary infonformation)
         ###
         # Get k-vectors (also called reciprocal space or Fourier vectors)
-        kvecgen = KvectorGenerator(frame.get_cell(), 1.2 * np.pi / self.smearing)
+        kvecgen = KvectorGenerator(frame.get_cell(), 1.5 * np.pi / self.smearing)
         kvecgen.compute()
         kvectors = kvecgen.kvectors
         kvecnorms = kvecgen.kvector_norms
@@ -401,6 +401,7 @@ class DensityProjectionCalculator():
             # species channel that agrees with the center atom.
             if self.subtract_center_contribution:
                 center_contrib = self.radial_proj.center_contributions
+                print('Center contribution = ', center_contrib)
                 frame_features[i_center, i_chem_center, :, 0] -= center_contrib
 
             # Loop over all atoms in the structure (including central atom)
@@ -419,7 +420,7 @@ class DensityProjectionCalculator():
                     I_nl_zero /= np.sqrt(4 * np.pi)
                     I_nl_zero *= (2*np.pi*self.smearing**2)**1.5 / (np.pi*self.smearing**2)**(3/4)
                     frame_features[i_center, i_chem_neigh, :, 0] += I_nl_zero[:,0] * global_factor
-                
+
                 # For van der Waals interactions decaying as 1/r^6,
                 # the potential decays fast enough that the Fourier
                 # transform of the density at k=0 is well defined.
@@ -427,11 +428,12 @@ class DensityProjectionCalculator():
                 elif self.potential_exponent in [4, 5, 6]:
                     peff = 3 - self.potential_exponent
                     prefac = np.pi**1.5 * 2**peff / gamma(self.potential_exponent/2) # global prefactor appearing in Fourier transformed density
-                    density_at_kzero = prefac * 2**((self.potential_exponent-1)/2) / (-peff) * self.smearing**(-peff) 
+                    density_at_kzero = prefac * 2**((self.potential_exponent-1)/2) / (-peff) * self.smearing**(-peff)
                     I_nl_zero = self.radial_proj.radial_spline(0)
                     I_nl_zero /= np.sqrt(4 * np.pi) # spherical harmonics Y_00
                     I_nl_zero *= density_at_kzero
                     frame_features[i_center, i_chem_neigh, :, 0] += I_nl_zero[:,0] * global_factor
+                    ref_value = k_dep_factor[0, :, 0]
 
                 # Slow implementation using manual loops:
                 # this version is kept for better comparison with the C++ ver.
