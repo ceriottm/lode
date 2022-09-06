@@ -430,7 +430,7 @@ class DensityProjectionCalculator():
                 elif self.potential_exponent in [4, 5, 6]:
                     peff = 3 - self.potential_exponent
                     prefac = np.pi**1.5 * 2**peff / gamma(self.potential_exponent/2) # global prefactor appearing in Fourier transformed density
-                    density_at_kzero = prefac * 2**((self.potential_exponent-1)/2) / (-peff) * self.smearing**(-peff)
+                    density_at_kzero = prefac * 2**((self.potential_exponent-1)/2) / (-peff) * self.smearing**(-peff) / self.smearing**(2*self.potential_exponent-6)
                     I_nl_zero = self.radial_proj.radial_spline(0)
                     I_nl_zero /= np.sqrt(4 * np.pi) # spherical harmonics Y_00
                     I_nl_zero *= density_at_kzero
