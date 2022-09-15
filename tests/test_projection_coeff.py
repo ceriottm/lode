@@ -130,7 +130,7 @@ class TestMadelung:
     """Test LODE feature against Madelung constant of different crystals."""
 
     scaling_factors = np.array([0.5, 1, 2, 3, 5, 10])
-    crystal_list = ["NaCl", "CsCl", "ZnS"]
+    crystal_list = ["NaCl", "CsCl", "ZnS", "ZnSO4"]
 
     def build_frames(self, symbols, positions, cell, scaling_factors):
         """Build an list of `ase.Atoms` instances.
@@ -176,7 +176,8 @@ class TestMadelung:
         by Ashcroft and Mermin.
 
         Note: Symbols and charges keys have to be sorted according to their
-        atomic number!
+        atomic number in ascending alternating order! For an example see 
+        ZnS04 in the wurtzite structure.
         """
         # Initialize dictionary for crystal paramaters
         d = {k: {} for k in self.crystal_list}
@@ -232,6 +233,28 @@ class TestMadelung:
                                    cell=d["ZnS"]["cell"],
                                    scaling_factors=self.scaling_factors)
         d["ZnS"]["frames"] = frames
+
+        # ZnS (O4) in wurtzite structure (triclinic cell)
+        u = 3 / 8
+        c = np.sqrt(1 / u)
+
+        d["ZnSO4"]["symbols"] = ["S", "Zn", "S", "Zn"]
+        d["ZnSO4"]["charges"] = np.array([1, -1, 1, -1])
+        d["ZnSO4"]["positions"] = np.array([[.5, .5 / np.sqrt(3), 0.],
+                                            [.5, .5 / np.sqrt(3), u * c],
+                                            [.5, -.5 / np.sqrt(3), 0.5 * c],
+                                            [.5, -.5 / np.sqrt(3), (.5 + u) * c]])
+        d["ZnSO4"]["cell"] = np.array([[.5, -0.5 * np.sqrt(3), 0],
+                                       [.5, .5 * np.sqrt(3), 0],
+                                       [0, 0, c]])
+                            
+        d["ZnSO4"]["madelung"] = 1.6413 / (u * c)
+
+        frames = self.build_frames(symbols=d["ZnSO4"]["symbols"],
+                                   positions=d["ZnSO4"]["positions"],
+                                   cell=d["ZnSO4"]["cell"],
+                                   scaling_factors=self.scaling_factors)
+        d["ZnSO4"]["frames"] = frames
 
         return d
 

@@ -226,7 +226,7 @@ class DensityProjectionCalculator():
         species = sorted(species)
         self.species_dict = {}
         for frame in frames:
-            #Get atomic species in dataset
+           # Get atomic species in dataset
            self.species_dict.update({atom.symbol: species.index(atom.number) for atom in frame})
 
         # Define variables determining size of feature vector coming from frames
