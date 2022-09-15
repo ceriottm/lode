@@ -129,7 +129,7 @@ class TestCoulombRandomStructures():
 class TestMadelung:
     """Test LODE feature against Madelung constant of different crystals."""
 
-    scaling_factors = np.array([0.5, 1, 2, 3, 5, 10])
+    scaling_factors = np.array([0.5, 1, 2.1, 3.3])
     crystal_list = ["NaCl", "CsCl", "ZnS", "ZnSO4"]
 
     def build_frames(self, symbols, positions, cell, scaling_factors):
@@ -260,9 +260,9 @@ class TestMadelung:
 
     @pytest.mark.parametrize("crystal_name", crystal_list)
     @pytest.mark.parametrize("smearing", [0.2, 0.1])
-    @pytest.mark.parametrize("rcut", [0.2, 0.01])
-    def test_madelung(self, crystal_dictionary, crystal_name, smearing, rcut):
-
+    @pytest.mark.parametrize("rcut", np.geomspace(1e-2, 0.2, 4))
+    @pytest.mark.parametrize("radial_basis", ["monomial", "gto"])
+    def test_madelung(self, crystal_dictionary, crystal_name, smearing, rcut, radial_basis):
         frames = crystal_dictionary[crystal_name]["frames"]
         n_atoms = len(crystal_dictionary[crystal_name]["symbols"])
 
@@ -271,7 +271,7 @@ class TestMadelung:
             max_angular=0,
             cutoff_radius=rcut,
             smearing=smearing,
-            radial_basis="monomial",
+            radial_basis=radial_basis,
             subtract_center_contribution=True)
 
         calculator.transform(frames=frames)
@@ -282,8 +282,13 @@ class TestMadelung:
         madelung = crystal_dictionary[crystal_name]["charges"][0] * features[:, 0, 0, :]
         madelung += crystal_dictionary[crystal_name]["charges"][1] * features[:, 0, 1, :]
 
-        # Normalization
-        madelung /= -np.sqrt(4 * np.pi / 3 * rcut**3)
+        # Convert pyLODE coefficients into actual potential
+        if radial_basis == 'monomial':
+            conversion_factor = -np.sqrt(4 * np.pi * rcut**3 / 3)
+        elif radial_basis == 'gto':
+            smear_gto = rcut
+            conversion_factor = -(4 * np.pi * smear_gto**2)**0.75
+        madelung /= conversion_factor
 
         assert_allclose(madelung.flatten(),
                         crystal_dictionary[crystal_name]["madelung"] /
