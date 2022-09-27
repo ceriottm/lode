@@ -145,12 +145,14 @@ class DensityProjectionCalculatorSummed():
         # only related to the choice of radial basis, namely the
         # projections of the spherical Bessel functions j_l(kr) onto the
         # radial basis and (if desired) the center contributions
-        self.radial_proj = RadialBasis(self.max_radial, self.max_angular,
-                                       self.cutoff_radius, self.smearing,
-                                       self.radial_basis,
-                                       potential_exponent,
-                                       self.subtract_center_contribution)
-        self.radial_proj.compute(1.2 * np.pi/self.smearing)
+        self.radial_proj = RadialBasis(max_radial = self.max_radial,
+            max_angular=self.max_angular,
+            cutoff_radius=self.cutoff_radius,
+            smearing=self.smearing,
+            radial_basis=self.radial_basis,
+            subtract_self=self.subtract_center_contribution,
+            potential_exponent=self.potential_exponent)
+        self.radial_proj.compute(2*np.pi/self.smearing)
 
     def transform(self, frames, show_progress=False):
         """

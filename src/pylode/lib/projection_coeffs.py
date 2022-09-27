@@ -403,7 +403,7 @@ class DensityProjectionCalculator():
             # of the projection coefficients and only the chemical
             # species channel that agrees with the center atom.
             if self.subtract_center_contribution:
-                center_contrib = self.radial_proj.center_contributions
+                center_contrib = self.radial_proj.center_contributions.copy()
                 frame_features[i_center, i_chem_center, :, 0] -= center_contrib
 
             # Loop over all atoms in the structure (including central atom)
