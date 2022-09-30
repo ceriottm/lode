@@ -6,9 +6,12 @@ These are the main tests for calculating the LODE features.
 
 # Generic imports
 import os
+from re import I
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
+from scipy.special import gamma, gammainc
+from scipy.integrate import quad
 from time import time
 
 # ASE imports
@@ -293,3 +296,134 @@ class TestMadelung:
                         crystal_dictionary[crystal_name]["madelung"] /
                         self.scaling_factors,
                         rtol=6e-1)
+
+# Fixtures
+def gammainc_upper_numerical(n, zz):
+    """
+    Implement upper incomplete Gamma function
+    """
+    yy = np.zeros_like(zz)
+    integrand = lambda x: x**(n-1) * np.exp(-x)
+    for iz, z in enumerate(zz):
+        yy[iz] = quad(integrand, z, np.inf)[0]
+    return yy
+
+# Real space density function for general exponent p
+def density_realspace(p, x, smearing):
+    if p==0:
+        return np.exp(-0.5 * x**2 / smearing**2)
+    else:
+        return gammainc(p/2, 0.5*(x/smearing)**2) / x**p
+
+# Fourier space density function for general exponent p
+def density_fourierspace(p, k, smearing):
+    peff = 3-p
+    prefac = np.pi**1.5 * 2**peff / gamma(p/2)
+    return prefac * gammainc_upper_numerical(peff/2, 0.5*(k*smearing)**2) / k**peff
+
+# Lattice sum for cubic cell
+def lattice_summation(interaction_func, L, nneigh=3, avoid_center=True):
+    total_sum = 0
+    num = (2*nneigh + 1)**3
+    if avoid_center:
+        num -= 1
+    radii = np.zeros((num,))
+    idx = 0
+    for ix in range(-nneigh, nneigh+1):
+        for iy in range(-nneigh, nneigh+1):
+            for iz in range(-nneigh, nneigh+1):
+                if ix==0 and iy==0 and iz==0 and avoid_center:
+                    continue
+                rad = np.sqrt(ix**2+iy**2+iz**2)*L
+                #radii.append(rad)
+                radii[idx] = rad
+                idx += 1
+    
+    radii_sorted = np.sort(radii)
+    funcvals = interaction_func(radii)
+    
+    total_sum = np.sum(funcvals)
+        
+    return total_sum
+
+class TestGeneralExponent():
+    """
+    Test the general exponent implementation
+    """
+    def test_cubic(self):
+        # Define inputs
+        smearing = 1.2
+        p = 6
+        f_real = lambda x: density_realspace(p, x, smearing)
+        f_fourier = lambda k: density_fourierspace(p, k, smearing)
+        f_ref = lambda x: 1/x**p
+
+        # Compensate for the lack of the center atom contribution
+        f0_real = 1 / (2*smearing**2)**(p/2) / gamma(p/2+1)
+        peff = 3-p
+        prefac = np.pi**1.5 * 2**peff / gamma(p/2) # global prefactor appearing in Fourier transformed density
+        f0_fourier = prefac * 2**((p-1)/2) / (-peff) * smearing**(-peff) / smearing**(2*p-6)
+        Ls = np.geomspace(0.3, 6, 30)
+
+        # Get the reference energies
+        positions = np.array([[0, 0, 0]])
+        nneigh = 14
+        Ls = np.geomspace(2.5*smearing, 10, 50)
+        Ls_fourier = 2 * np.pi / Ls
+
+        # Evaluate the lattice sums using both methods
+        potential_real = np.zeros_like(Ls)
+        potential_fourier = np.zeros_like(Ls)
+        potential_ref = np.zeros_like(Ls)
+        for iL, L in enumerate(Ls):
+            box = [L, L, L, 90, 90, 90]
+            L_k = Ls_fourier[iL]
+            box_fourier = [L_k, L_k, L_k, 90, 90, 90]
+            potential_ref[iL] = lattice_summation(L = L,
+                                        interaction_func=f_ref,
+                                        nneigh=nneigh)
+            potential_real[iL] = lattice_summation(L = L,
+                                        interaction_func=f_real,
+                                        nneigh=nneigh)
+            potential_fourier[iL] = lattice_summation(L = L_k,
+                                        interaction_func=f_fourier,
+                                        nneigh=nneigh)
+            potential_fourier[iL] /= L**3
+
+        potential_real += f0_real
+        potential_fourier += f0_fourier / Ls**3
+
+        frames = []
+        pos = [[0,0,0]]
+        for iL, L in enumerate(Ls):
+            # Add cell to structures
+            cell = np.eye(3)*L
+            frame = Atoms('Si', positions=pos, cell=cell, pbc=True)
+            frames.append(frame)
+
+        # Start computing features from pyLODE
+        nmax = 1
+        lmax = 0
+        rcut = 0.05
+
+        hypers = {
+            'smearing':smearing,
+            'max_angular':lmax,
+            'max_radial':nmax,
+            'cutoff_radius':rcut,
+            'potential_exponent':p,
+            'radial_basis': 'monomial',
+            'compute_gradients':False,
+            'subtract_center_contribution':False,
+            'fast_implementation':True
+        }
+
+        # Compute features
+        calculator_pylode = DensityProjectionCalculator(**hypers)
+        calculator_pylode.transform(frames)
+        features_pylode = calculator_pylode.features
+        prefac_e = np.sqrt(3 / (4 * np.pi * rcut**3))
+        potential_pylode = prefac_e * features_pylode.flatten()
+
+        # Compare features
+        assert_allclose(potential_pylode, potential_real, rtol=1e-3, atol=1e-5)
