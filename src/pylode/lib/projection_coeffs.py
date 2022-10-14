@@ -25,33 +25,6 @@ from .atomic_density import AtomicDensity
 
 logger = logging.getLogger(__name__)
 
-def gammainc_upper_numerical(n, zz):
-    """
-    Implement upper incomplete Gamma function
-    """
-    yy = np.zeros_like(zz)
-    integrand = lambda x: x**(n-1) * np.exp(-x)
-    for iz, z in enumerate(zz):
-        yy[iz] = quad(integrand, z, np.inf)[0]
-    return yy
-
-
-def gammainc_upper_numerical(n, zz):
-    """
-    Implement upper incomplete Gamma function
-    """
-    yy = np.zeros_like(zz)
-    integrand = lambda x: x**(n-1) * np.exp(-x)
-    for iz, z in enumerate(zz):
-        yy[iz] = quad(integrand, z, np.inf)[0]
-    return yy
-
-
-def density_fourierspace(p, k, smearing):
-    peff = 3-p
-    prefac = np.pi**1.5 * 2**peff / gamma(p/2)
-    return prefac * gammainc_upper_numerical(peff/2, 0.5*(k*smearing)**2) / k**peff
-
 
 class DensityProjectionCalculator():
     """
