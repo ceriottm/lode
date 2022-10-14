@@ -142,6 +142,7 @@ class DensityProjectionCalculator():
         self.compute_gradients = compute_gradients
         self.subtract_center_contribution = subtract_center_contribution
         self.fast_implementation = fast_implementation
+        self.kcut = 1.2 * np.pi / smearing
 
         # Make sure that the provided parameters are consistent
         if self.potential_exponent not in [0, 1, 2, 3, 4, 5, 6]:
@@ -171,7 +172,7 @@ class DensityProjectionCalculator():
             subtract_self=self.subtract_center_contribution,
             potential_exponent=self.potential_exponent)
 
-        self.radial_proj.compute(2*np.pi/self.smearing)
+        self.radial_proj.compute(self.kcut)
 
     def transform(self, frames, show_progress=False):
         """
@@ -316,7 +317,7 @@ class DensityProjectionCalculator():
         #   (more precisely, the section 2 in supplementary infonformation)
         ###
         # Get k-vectors (also called reciprocal space or Fourier vectors)
-        kvecgen = KvectorGenerator(frame.get_cell(), 1.2 * np.pi / self.smearing)
+        kvecgen = KvectorGenerator(frame.get_cell(), self.kcut)
         kvecgen.compute()
         kvectors = kvecgen.kvectors
         kvecnorms = kvecgen.kvector_norms
