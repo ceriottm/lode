@@ -1,36 +1,8 @@
 # Class storing all information related to the atomic density
 
 import numpy as np
-from scipy.special import erf, gamma, gammainc
+from scipy.special import erf, gamma, gammainc, expi, erfc
 from scipy.integrate import quad
-
-# Return the upper incomplete Gamma function Gamma(+3/2, x)
-# This is used in the recursive evaluation of Gamma(-3/2), Gamma(-1/2) etc.
-# which are in turn required to define the Fourier transformed density for
-# general exponents
-def gammainc_upper_three_half(xx):
-    res = np.zeros_like(xx)
-    integrand = lambda t: t**0.5 * np.exp(-t)
-    for ix, x in enumerate(xx):
-        res[ix] = quad(integrand, x, np.inf, epsrel=1e-12, epsabs=1e-12)[0]
-    return res
-
-# From a numerical point of view, it is unstable to evaluate
-# the incomplete Gamma functions directly since these have a singularity
-# at x=0 for a<0. Thus, we generate a function that returns Gamma(a,x)/x^a instead,
-# which removes the singularity at the origin.
-def incomplete_gamma_over_powerlaw(x):
-    res = 2/3*np.exp(-x)*(1 - 2*x - 4*x**2)
-    res += 8/3*x**(3/2) * gammainc_upper_three_half(x)
-    return res
-
-# Define the Fourier transform of the density for p=6
-def density_dispersion(k, smearing):
-    peff = -3/2
-    p = 6
-    prefac = np.pi**1.5 * 4**peff / gamma(p/2)
-    prefac *= (smearing**2/2)**peff
-    return prefac * incomplete_gamma_over_powerlaw(0.5*smearing**2*k**2)
 
 # Numerical implementation of upper incomplete Gamma function
 # using the integral definition that also works for negative
@@ -56,25 +28,47 @@ def gammainc_over_power(a, zz, cutoff=1e-5):
     """
     Compute gammainc(a,zz) / z^a, where gammainc is the lower incomplete gamma function
     """
-    # Make sure all inputs are nonnegative
-    assert (zz>=0).all()
     assert a > 0
-    
-    # Initialization
-    yy = np.zeros_like(zz)
-    
-    # Split input values into those that are very close to zero (close to the singularity)
-    # and the remaining part.
-    idx_small = zz < cutoff
-    idx_large = zz >= cutoff
-       
-    # Evaluate the function using the usual expression
-    yy[idx_large] = gammainc(a, zz[idx_large]) / zz[idx_large]**a * gamma(a)
-    
-    # For small z close to the singularity, use the asymptotic expansion
-    yy[idx_small] = 1/a - zz[idx_small]/(a+1) + zz[idx_small]**2/(2*(a+2))
-    
-    return yy
+
+    if type(zz) == np.ndarray:
+        # Make sure all inputs are nonnegative
+        assert (zz>=0).all()
+        
+        # Initialization
+        yy = np.zeros_like(zz)
+        
+        # Split input values into those that are very close to zero (close to the singularity)
+        # and the remaining part.
+        idx_small = zz < cutoff
+        idx_large = zz >= cutoff
+        
+        # Evaluate the function using the usual expression
+        yy[idx_large] = gammainc(a, zz[idx_large]) / zz[idx_large]**a * gamma(a)
+        
+        # For small z close to the singularity, use the asymptotic expansion
+        yy[idx_small] = 1/a - zz[idx_small]/(a+1) + zz[idx_small]**2/(2*(a+2))
+        
+        return yy
+
+    else: # zz is a single float variable
+        if zz < cutoff:
+            return 1/a - zz/(a+1) + zz**2/(2*(a+2))
+        else:
+            return gammainc(a, zz) / zz**a * gamma(a)
+
+
+# Auxilary function for stable Fourier transform implementation
+def gammainc_upper_over_powerlaw(p, zz):
+    if p==2:
+        return np.sqrt(np.pi/zz) * erfc(np.sqrt(zz))
+    elif p==3:
+        return -expi(-zz)
+    elif p==4:
+        return 2*(np.exp(-zz) - np.sqrt(np.pi*zz)*erfc(np.sqrt(zz)))
+    elif p==5:
+        return np.exp(-zz) + zz*expi(-zz)
+    elif p==6:
+        return ((2-4*zz)*np.exp(-zz) + 4*np.sqrt(np.pi)*zz**1.5*erfc(np.sqrt(zz)))/3
 
 class AtomicDensity():
     """
@@ -95,7 +89,6 @@ class AtomicDensity():
         Note that even for a single input value, xx has to be an array
         for this to work.
         """
-        assert type(xx) == np.ndarray
         smearing = self.smearing
 
         # Gaussian density with L2 normalization, i.e.
@@ -127,15 +120,15 @@ class AtomicDensity():
             prefac = 4 * np.pi
             return prefac * np.exp(-0.5 * (kk*self.smearing)**2) / kk**2
 
-        # Smeared dispersion density
-        elif self.potential_exponent == 6:
-            return density_dispersion(kk, self.smearing)
-
+        # Fourier transform of general smeared 1/r^p potential
         elif self.potential_exponent in [2,3,4,5,6]:
-            peff = 3-self.potential_exponent
             p = self.potential_exponent
-            prefac = np.pi**1.5 * 2**peff / gamma(p/2)
-            return prefac * gammainc_upper_numerical(peff/2, 0.5*(kk*smearing)**2) / kk**peff
+            peff = 3-p
+            prefac = np.pi**1.5 / gamma(p/2) * (2*smearing**2)**(peff/2)
+            zz = 0.5*smearing**2*kk**2
+            #prefac = np.pi**1.5 * 2**peff / gamma(p/2)
+            #    return prefac * gammainc_upper_numerical(peff/2, 0.5*(kk*smearing)**2) / kk**peff
+            return prefac * gammainc_upper_over_powerlaw(p, zz) 
 
     # Get the (real space) density function g(r) evaluated at zero.
     def get_density_at_zero(self):
