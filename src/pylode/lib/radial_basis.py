@@ -12,6 +12,8 @@ from scipy.integrate import dblquad
 from scipy.special import erf, spherical_jn  # arguments (n,z)
 from scipy.special import eval_legendre, gamma, gammainc, hyp1f1
 
+from .atomic_density import AtomicDensity
+
 try:
     from scipy.integrate import simpson
 except ImportError:  # scipy <= 1.5.4
@@ -127,22 +129,13 @@ class RadialBasis():
 
         # Preparation for the extra steps in case the contribution to
         # the density by the center atom is to be subtracted
-        # TODO: For now, always define the density function since it
-        # will also be used in the real space implementation.
-        if self.subtract_center_contribution or True:
-            if potential_exponent == 0:
-                self.density_function = lambda x: gaussian_L2(x, smearing)
-            elif potential_exponent == 1:
-                self.density_function = lambda x: erfxx(x, smearing)
-            elif potential_exponent in [2, 3, 4, 5, 6]:
-                self.density_function = lambda x: longrange_general(x, self.smearing, self.potential_exponent)
-            else:
-                raise ValueError(f"Potential exponent is {potential_exponent}"
-                                 " but has to be one of 0, 1, 2, ..., 6")
+        self.atomic_density = AtomicDensity(smearing, potential_exponent)
+        self.density_function = self.atomic_density.get_atomic_density
 
         if self.radial_basis not in ["monomial", "gto", "gto_primitive"]:
             raise ValueError(f"{self.radial_basis} is not an implemented basis"
                               ". Try 'monomial', 'GTO' or GTO_primitive.")
+
 
     def compute(self, kmax, Nradial=1000, Nspline=200):
         """
