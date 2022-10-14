@@ -21,6 +21,7 @@ except ImportError:
 from .kvec_generator import KvectorGenerator
 from .radial_basis import RadialBasis
 from .spherical_harmonics import evaluate_spherical_harmonics
+from .atomic_density import AtomicDensity
 
 logger = logging.getLogger(__name__)
 
@@ -174,6 +175,9 @@ class DensityProjectionCalculator():
 
         self.radial_proj.compute(self.kcut)
 
+        # Initialize atomic density class
+        self.atomic_density = AtomicDensity(smearing, potential_exponent)
+
     def transform(self, frames, show_progress=False):
         """
         Computes the features and (if compute_gradients == True) gradients
@@ -326,13 +330,7 @@ class DensityProjectionCalculator():
         # Fourier transform of density times Fourier transform of potential
         # This is the line where using Gaussian or 1/r^p for different p are
         # distinguished
-        if self.potential_exponent == 0:
-            prefac = (4 * np.pi * self.smearing**2)**(3/4)
-            G_k = prefac * np.exp(-0.5 * (kvecnorms*self.smearing)**2)
-        elif self.potential_exponent == 1:
-            G_k = 4 * np.pi / kvecnorms**2 * np.exp(-0.5 * (kvecnorms*self.smearing)**2)
-        else:
-            G_k = density_fourierspace(self.potential_exponent, kvecnorms, self.smearing)
+        G_k = self.atomic_density.get_fourier_transform(kvecnorms)
 
         # Spherical harmonics evaluated at the k-vectors
         # for angular projection
@@ -432,6 +430,9 @@ class DensityProjectionCalculator():
                     peff = 3 - self.potential_exponent
                     prefac = np.pi / 2 * 2**peff / gamma(self.potential_exponent/2) # global prefactor appearing in Fourier transformed density
                     density_at_kzero = prefac * 2**((self.potential_exponent-1)/2) / (-peff) * self.smearing**(-peff) / self.smearing**(2*self.potential_exponent-6)
+                    # density_at_kzero = self.atomic_density.get_fourier_transform_at_zero()
+                    # TODO: redo this part to express the result in terms of the
+                    # kspace density at zero obtained from the atomic_density_code
                     I_nl_zero = self.radial_proj.radial_spline(0)
                     I_nl_zero *= density_at_kzero
                     frame_features[i_center, i_chem_neigh, :, 0] += I_nl_zero[:,0] * global_factor
