@@ -77,6 +77,9 @@ class DensityProjectionCalculator():
         'GTO_primitive', 'GTO', 'monomial'.
         For monomial: Only use one radial basis r^l for each angular
         channel l leading to a total of (lmax+1)^2 features.
+    kcut : float
+        Cutoff for the kspcae sum. If `None` it is set to `1.2 * π / smearing`
+        which is a reasonable estimate for many systems.
     compute_gradients : bool
         Compute gradients
     potential_exponent : int
@@ -129,6 +132,7 @@ class DensityProjectionCalculator():
                  cutoff_radius,
                  smearing,
                  radial_basis,
+                 kcut=None,
                  compute_gradients=False,
                  potential_exponent=1,
                  subtract_center_contribution=False,
@@ -143,7 +147,10 @@ class DensityProjectionCalculator():
         self.compute_gradients = compute_gradients
         self.subtract_center_contribution = subtract_center_contribution
         self.fast_implementation = fast_implementation
-        self.kcut = 1.2 * np.pi / smearing
+        if kcut is None:
+            self.kcut = 1.2 * np.pi / smearing
+        else:
+            self.kcut = kcut
 
         # Make sure that the provided parameters are consistent
         if self.potential_exponent not in [0, 1, 2, 3, 4, 5, 6]:
