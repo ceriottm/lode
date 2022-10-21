@@ -191,9 +191,44 @@ class TestRadialProjection:
         assert_allclose(center_contr, center_contr_analytical, rtol=2e-7)
         assert_allclose(center_contr_numerical, center_contr_analytical, rtol=1e-14)
 
-    smearings = [0.5, 1, 1.5]
-    nmaxs = [4, 5, 6]
-    rcuts = [0.1, 2, 5]
+    smearings = [0.5, 1.2]
+    nmaxs = [5, 6]
+    rcuts = [0.1, 1., 5]
+    @pytest.mark.parametrize("smearing", smearings)
+    @pytest.mark.parametrize("rcut", rcuts)
+    @pytest.mark.parametrize("nmax", nmaxs)
+    def test_exact_center_contribution_gto_gaussian(self, smearing, rcut, nmax):
+        # Generate length scales sigma_n for R_n(x)
+        sigma = np.ones(nmax, dtype=float)
+        for i in range(1, nmax):
+            sigma[i] = np.sqrt(i)
+        sigma *= rcut / nmax
+        
+        # Precompute the global prefactor that does not depend on n
+        prefac = np.sqrt(4*np.pi) / (np.pi * smearing**2)**0.75 / 2
+        
+        # Compute center contributions
+        center_contribs = np.ones((nmax,)) * prefac
+        for n in range(nmax):
+            alpha = 0.5*(1/smearing**2 + 1/sigma[n]**2) 
+            center_contribs[n] *= gamma((3+n)/2) / alpha**((3+n)/2)
+
+        # Center contributions from pyLODE
+        lmax = 0 # irrelevant for this code, but we still need to provide it
+        radial_basis_hypers = {'max_radial':nmax,
+                            'max_angular':lmax,
+                            'cutoff_radius':rcut,
+                            'smearing':smearing,
+                            'radial_basis':'gto_primitive',
+                            'subtract_self':True,
+                            'potential_exponent':0}
+        radial_basis = RadialBasis(**radial_basis_hypers)
+        radial_basis.compute(kmax=1)
+        center_contribs_pylode = radial_basis.center_contributions
+
+        # Test agreement between the coefficients
+        assert_allclose(center_contribs, center_contribs_pylode, rtol=2e-6)
+
     @pytest.mark.parametrize("smearing", smearings)
     @pytest.mark.parametrize("rcut", rcuts)
     @pytest.mark.parametrize("nmax", nmaxs)
@@ -235,24 +270,31 @@ class TestRadialProjection:
         # Test agreement between the coefficients
         assert_allclose(center_contribs, center_contribs_pylode, rtol=1e-5)
 
+
+    
+
     @pytest.mark.parametrize("smearing", smearings)
     @pytest.mark.parametrize("rcut", rcuts)
     @pytest.mark.parametrize("nmax", nmaxs)
-    def test_exact_center_contribution_gto_gaussian(self, smearing, rcut, nmax):
+    @pytest.mark.parametrize("p", [1,2,3,4,5,6])
+    def test_exact_center_contribution_gto_genexp(self, smearing, rcut, nmax, p):
         # Generate length scales sigma_n for R_n(x)
         sigma = np.ones(nmax, dtype=float)
         for i in range(1, nmax):
             sigma[i] = np.sqrt(i)
         sigma *= rcut / nmax
-        
+
         # Precompute the global prefactor that does not depend on n
-        prefac = np.sqrt(4*np.pi) / (np.pi * smearing**2)**0.75 / 2
-        
+        prefac = np.sqrt(4*np.pi) / gamma(p/2)
+    
         # Compute center contributions
-        center_contribs = np.ones((nmax,)) * prefac
+        center_contribs = prefac * np.ones((nmax,))
         for n in range(nmax):
-            alpha = 0.5*(1/smearing**2 + 1/sigma[n]**2) 
-            center_contribs[n] *= gamma((3+n)/2) / alpha**((3+n)/2)
+            neff = (3+n)/2
+            center_contribs[n] *= 2**((1+n-p)/2) * smearing**(3+n-p) * 2 * gamma(neff) / p
+            s = smearing**2 / sigma[n]**2
+            hyparg = 1/(1+s)
+            center_contribs[n] *= hyp2f1(1,neff,((p+2)/2),hyparg) * hyparg**neff
 
         # Center contributions from pyLODE
         lmax = 0 # irrelevant for this code, but we still need to provide it
@@ -262,14 +304,13 @@ class TestRadialProjection:
                             'smearing':smearing,
                             'radial_basis':'gto_primitive',
                             'subtract_self':True,
-                            'potential_exponent':0}
+                            'potential_exponent':p}
         radial_basis = RadialBasis(**radial_basis_hypers)
         radial_basis.compute(kmax=1)
         center_contribs_pylode = radial_basis.center_contributions
 
         # Test agreement between the coefficients
         assert_allclose(center_contribs, center_contribs_pylode, rtol=1e-5)
-
 
     def test_center_contribution_monomial_longrange(self):
         # Define hyperparameters
