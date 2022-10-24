@@ -21,6 +21,8 @@ from ase.io import read
 
 # Library specific imports
 from pylode.lib.projection_coeffs import DensityProjectionCalculator
+from pylode.utilities.energy_evaluation import periodic_potential
+from pylode.lib.atomic_density import AtomicDensity
 
 REF_STRUCTS = os.path.join(os.path.dirname(__file__), 'reference_structures')
 
@@ -128,6 +130,57 @@ class TestCoulombRandomStructures():
         assert np.mean(diff/forces.flatten()) < 1e-2
 
 
+    def test_dispersion_random_structure(self):
+        # Compare the pyLODE features with exact dispersion potentials
+        # rcoulomb = 0.3  ; nm
+        frames = read(os.path.join(REF_STRUCTS, "dispersion_test_frames.xyz"),
+                      ":")
+        # Define the hypers
+        p = 6
+        smearing = 0.6
+    
+        # Compute the reference potential
+        nneigh = 3
+        f_ref = lambda x: 1/x**p
+        energy_target = periodic_potential(f_ref, frames, nneigh, avoid_center=True)
+        # potential_ref = np.zeros((len(frames),))
+        # potential_smeared = np.zeros_like(potential_ref)
+        # atomic_density = AtomicDensity(smearing, p)
+        # f_smeared = lambda x: atomic_density.get_atomic_density(x)
+
+        # Define hyperparameters to run tests
+        rcut = 0.1
+        hypers = {
+            'smearing': smearing,
+            'max_angular': 0,
+            'max_radial': 1,
+            'cutoff_radius': rcut,
+            'potential_exponent': p,
+            'radial_basis': 'monomial',
+            'compute_gradients': False,
+            'fast_implementation': True,
+            'subtract_center_contribution':True,
+            'kcut':2*np.pi/smearing
+        }
+
+        # Run the slow implementation using manual for loops
+        # This version is kept for comparison with the C++/Rust versions
+        # in which the sums need to be looped explicitly.
+        calculator = DensityProjectionCalculator(**hypers)
+        calculator.transform(frames)
+        features = calculator.features
+
+        # Convert features to potential
+        prefac_e = np.sqrt(3 / (4 * np.pi * rcut**3)) / 2
+        energy_pylode = np.zeros((len(frames),))
+        for i in range(len(frames)):
+            feat_frame = features[8*i:8*(i+1)]
+            feat_total = np.sum(feat_frame)
+            energy_pylode[i] = prefac_e * feat_total
+
+        # Make sure that the values agree
+        assert_allclose(energy_pylode, energy_target, rtol = 3e-3)
+
 class TestMadelung:
     """Test LODE feature against Madelung constant of different crystals."""
 
@@ -222,7 +275,7 @@ class TestMadelung:
         # the lattice parameter of the cubic cell equal to 2.
         # In these units, the closest Zn-S distance is sqrt(3)/2.
         # We thus divide the Madelung constant by this value.
-        # If, on the other hand, we set the lattice constant of
+        # If, on the other han_pylode_without_centerd, we set the lattice constant of
         # the cubic cell equal to 1, the Zn-S distance is sqrt(3)/4.
         d["ZnS"]["symbols"] = ["S", "Zn"]
         d["ZnS"]["charges"] = np.array([1, -1])

@@ -42,7 +42,7 @@ def periodic_potential_single(potential_func, frame, nneigh=3, avoid_center=True
         for j in range(i+1, natoms):
             pos_1 = positions[i]
             pos_2 = positions[j]
-            potential += periodic_energy_pair
+            potential += periodic_energy_pair(potential_func, cell, pos_1, pos_2, nneigh=nneigh)
 
     # Add the energy contributions arising from an atom
     # interacting with its own periodic neighbors
