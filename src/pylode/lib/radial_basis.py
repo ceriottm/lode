@@ -101,12 +101,12 @@ class RadialBasis():
         self.atomic_density = AtomicDensity(smearing, potential_exponent)
         self.density_function = self.atomic_density.get_atomic_density
 
-        if self.radial_basis not in ["monomial", "gto", "gto_primitive"]:
+        if self.radial_basis not in ["monomial", "gto", "gto_primitive", "gto_analytical"]:
             raise ValueError(f"{self.radial_basis} is not an implemented basis"
                               ". Try 'monomial', 'GTO' or GTO_primitive.")
 
 
-    def compute(self, kmax, Nradial=1000, Nspline=200):
+    def compute(self, kmax, Nradial=5000, Nspline=1000):
         """
         Obtain the projection coefficients of the spherical Bessel functions
         onto the chosen basis.
@@ -176,8 +176,8 @@ class RadialBasis():
 
             # Start evaluation of spherical Bessel functions
             for l in range(lmax + 1):
-                for n in range(nmax):
-                    for ik, k in enumerate(kk):
+                for ik, k in enumerate(kk):
+                    for n in range(nmax):
                         bessel = spherical_jn(l, k * xx)
                         projcoeffs[ik, n, l] = innerprod(
                             xx, R_n_ortho[n], bessel)
@@ -189,6 +189,60 @@ class RadialBasis():
                 for n in range(nmax):
                     self.center_contributions[n] = prefac * innerprod(
                         xx, R_n_ortho[n], density)
+
+
+        elif self.radial_basis == 'gto_analytical':
+            # Generate length scales sigma_n for R_n(x)
+            sigma = np.ones(nmax, dtype=float)
+            for i in range(1, nmax):
+                sigma[i] = np.sqrt(i)
+            sigma *= rcut / nmax
+
+            # Define normalizations of GTOs
+            normalizations = np.zeros((nmax,))
+            for n in range(nmax):
+                normalizations[n] = np.sqrt(2 / (sigma[n]**(3+2*n) * gamma(1.5 + n)))
+            self.normalizations = normalizations
+
+            # Compute the inner product matrix from the analytical expression
+            innerprods = np.zeros((nmax, nmax))
+            for n1 in range(nmax):
+                for n2 in range(nmax):
+                    neff = (3+n1+n2)/2
+                    alpha = 0.5 * (1/sigma[n1]**2 + 1/sigma[n2]**2)
+                    innerprods[n1, n2] = alpha**(-neff) * gamma(neff) / 2
+                    innerprods[n1, n2] *= normalizations[n1]
+                    innerprods[n1, n2] *= normalizations[n2]
+
+            # Diagonalize the inner product matrix
+            eigvals, eigvecs = np.linalg.eigh(innerprods)
+            transformation = eigvecs @ np.diag(np.sqrt(
+                1. / eigvals)) @ eigvecs.T
+            self.orthonormalization_matrix = transformation
+
+            # Start evaluation of spherical Bessel functions
+            for l in range(lmax + 1):
+                for ik, k in enumerate(kk):
+                    coeffs = normalizations * np.sqrt(np.pi)
+                    for n in range(nmax):
+                        neff = 3 + n + l
+                        coeffs[n] *= 2**((n-l-1)/2) * k**l
+                        coeffs[n] *= sigma[n]**neff * gamma(neff/2) / gamma(1.5+l)
+                        coeffs[n] *= hyp1f1(neff/2, 1.5+l, -0.5*k**2*sigma[n]**2)
+                    projcoeffs[ik, :, l] = transformation @ coeffs
+
+            # Compute self contribution to the l=0 components
+            if self.subtract_center_contribution:
+                smearing = self.smearing
+                # Precompute the global prefactor that does not depend on n
+                prefac = np.sqrt(4*np.pi) / (np.pi * smearing**2)**0.75 / 2
+                
+                # Compute center contributions
+                center_contribs = normalizations * prefac
+                for n in range(nmax):
+                    alpha = 0.5*(1/smearing**2 + 1/sigma[n]**2) 
+                    center_contribs[n] *= gamma((3+n)/2) / alpha**((3+n)/2)
+                self.center_contributions = transformation @ center_contribs
 
         elif self.radial_basis == 'monomial':
             if nmax != 1:

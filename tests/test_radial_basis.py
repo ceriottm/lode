@@ -102,7 +102,6 @@ class TestRadialProjection:
         error = coeffs - coeffs_exact
         assert np.linalg.norm(error) / error.size < 1e-6
 
-    
     def test_center_contribution_gto_gaussian(self):
         # Define hyperparameters
         nmax = 6
@@ -269,9 +268,6 @@ class TestRadialProjection:
 
         # Test agreement between the coefficients
         assert_allclose(center_contribs, center_contribs_pylode, rtol=1e-5)
-
-
-    
 
     @pytest.mark.parametrize("smearing", smearings)
     @pytest.mark.parametrize("rcut", rcuts)
