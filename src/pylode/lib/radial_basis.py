@@ -233,7 +233,7 @@ class RadialBasis():
 
             # Compute self contribution to the l=0 components
             smearing = self.smearing
-            center_contribs = normalizations # initialize with normalization factors
+            center_contribs = normalizations.copy() # initialize with normalization factors
             if self.potential_exponent == 0:
                 # Precompute the global prefactor that does not depend on n
                 prefac = np.sqrt(4*np.pi) / (np.pi * smearing**2)**0.75 / 2
