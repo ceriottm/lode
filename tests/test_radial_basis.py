@@ -192,7 +192,7 @@ class TestRadialProjection:
 
     smearings = [0.5, 1.2]
     nmaxs = [5, 6]
-    rcuts = [0.1, 1., 5]
+    rcuts = [0.1, 5]
     @pytest.mark.parametrize("smearing", smearings)
     @pytest.mark.parametrize("rcut", rcuts)
     @pytest.mark.parametrize("nmax", nmaxs)
@@ -226,7 +226,7 @@ class TestRadialProjection:
         center_contribs_pylode = radial_basis.center_contributions
 
         # Test agreement between the coefficients
-        assert_allclose(center_contribs, center_contribs_pylode, rtol=2e-6)
+        assert_allclose(center_contribs, center_contribs_pylode, rtol=2e-4)
 
     @pytest.mark.parametrize("smearing", smearings)
     @pytest.mark.parametrize("rcut", rcuts)
@@ -307,6 +307,28 @@ class TestRadialProjection:
 
         # Test agreement between the coefficients
         assert_allclose(center_contribs, center_contribs_pylode, rtol=1e-5)
+
+    # The GTOs are implemented in pyLODE using two different methods.
+    # The first one uses the general implementation that works for any
+    # radial basis, evaluating the radial basis on a grid and then using
+    # quadratures for the subsequent integrals.
+    # The second one uses the analytical expressions instead, both for
+    # the center contributions as well as 
+    @pytest.mark.parametrize("sigma", smearings)
+    @pytest.mark.parametrize("rcut", rcuts)
+    @pytest.mark.parametrize("nmax", nmaxs)
+    @pytest.mark.parametrize("lmax", [1])
+    @pytest.mark.parametrize("p", [0, 1, 3, 6])
+    def test_agreement_gto_with_analytical(self, sigma, rcut, nmax, p, lmax):
+        radproj_numerical = RadialBasis(nmax, lmax, rcut, sigma, 'gto', True, potential_exponent=p)
+        radproj_numerical.compute(2 * np.pi/sigma, Nradial=2000)
+        center_contrib_numerical = radproj_numerical.center_contributions
+        
+        radproj_analytical = RadialBasis(nmax, lmax, rcut, sigma, 'gto_analytical', True, potential_exponent=p)
+        radproj_analytical.compute(2 * np.pi/sigma, Nradial=2000)
+        center_contrib_analytical = radproj_analytical.center_contributions
+
+        assert_allclose(center_contrib_numerical, center_contrib_analytical, rtol=2e-4)
 
     def test_center_contribution_monomial_longrange(self):
         # Define hyperparameters
