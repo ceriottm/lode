@@ -10,7 +10,7 @@ import numpy as np
 from scipy.interpolate import CubicSpline
 from scipy.integrate import dblquad
 from scipy.special import erf, spherical_jn  # arguments (n,z)
-from scipy.special import eval_legendre, gamma, gammainc, hyp1f1
+from scipy.special import eval_legendre, gamma, gammainc, hyp1f1, hyp2f1
 
 from .atomic_density import AtomicDensity
 
@@ -101,7 +101,7 @@ class RadialBasis():
         self.atomic_density = AtomicDensity(smearing, potential_exponent)
         self.density_function = self.atomic_density.get_atomic_density
 
-        if self.radial_basis not in ["monomial", "gto", "gto_primitive", "gto_analytical"]:
+        if self.radial_basis not in ["monomial", "gto", "gto_primitive", "gto_analytical", "gto_normalized"]:
             raise ValueError(f"{self.radial_basis} is not an implemented basis"
                               ". Try 'monomial', 'GTO' or GTO_primitive.")
 
@@ -136,7 +136,7 @@ class RadialBasis():
 
         # Start main part: Store all the desired values for the specified
         # radial basis.
-        if self.radial_basis in ['gto', 'gto_primitive']:
+        if self.radial_basis in ['gto', 'gto_primitive', 'gto_normalized']:
             # Generate length scales sigma_n for R_n(x)
             sigma = np.ones(nmax, dtype=float)
             for i in range(1, nmax):
@@ -171,7 +171,7 @@ class RadialBasis():
 
             # For testing purposes, allow usage of nonprimitive
             # radial basis.
-            if self.radial_basis == 'gto_primitive':
+            if self.radial_basis in ['gto_primitive', 'gto_normalized']:
                 R_n_ortho = R_n
 
             # Start evaluation of spherical Bessel functions
@@ -232,17 +232,48 @@ class RadialBasis():
                     projcoeffs[ik, :, l] = transformation @ coeffs
 
             # Compute self contribution to the l=0 components
-            if self.subtract_center_contribution:
-                smearing = self.smearing
+            smearing = self.smearing
+            center_contribs = normalizations # initialize with normalization factors
+            if self.potential_exponent == 0:
                 # Precompute the global prefactor that does not depend on n
                 prefac = np.sqrt(4*np.pi) / (np.pi * smearing**2)**0.75 / 2
+                center_contribs *= prefac
                 
                 # Compute center contributions
-                center_contribs = normalizations * prefac
                 for n in range(nmax):
                     alpha = 0.5*(1/smearing**2 + 1/sigma[n]**2) 
                     center_contribs[n] *= gamma((3+n)/2) / alpha**((3+n)/2)
-                self.center_contributions = transformation @ center_contribs
+            
+            elif self.potential_exponent == 1:
+                # Precompute the global prefactor that does not depend on n
+                angular_prefac = np.sqrt(4*np.pi)
+                radial_prefac = 1./(np.sqrt(np.pi) * smearing)
+                prefac = angular_prefac * radial_prefac 
+                center_contribs *= prefac
+
+                # Compute center contributions
+                for n in range(nmax):
+                    # n-dependent part of "prefactor" (anything apart from hyp2f1)
+                    center_contribs[n] *= 2**((2+n)/2)*sigma[n]**(3+n)*gamma((3+n)/2)
+
+                    # hypergeometric function arising from radial integration
+                    hyparg = -sigma[n]**2/smearing**2
+                    center_contribs[n] *= hyp2f1(0.5, (n+3)/2, 1.5, hyparg)
+            
+            elif self.potential_exponent in [2,3,4,5,6]:
+                p = self.potential_exponent
+                prefac = np.sqrt(4*np.pi) / gamma(p/2)
+                center_contribs *= prefac
+ 
+                # Compute center contributions
+                for n in range(nmax):
+                    neff = (3+n)/2
+                    center_contribs[n] *= 2**((1+n-p)/2) * smearing**(3+n-p) * 2 * gamma(neff) / p
+                    s = smearing**2 / sigma[n]**2
+                    hyparg = 1/(1+s)
+                    center_contribs[n] *= hyp2f1(1,neff,((p+2)/2),hyparg) * hyparg**neff
+
+            self.center_contributions = transformation @ center_contribs
 
         elif self.radial_basis == 'monomial':
             if nmax != 1:
@@ -384,6 +415,99 @@ class RadialBasis():
         
         # Generate length scales sigma_n for R_n(x)
         if radial_basis == 'gto':
+            sigma = np.ones(nmax, dtype=float)
+            for i in range(1, nmax):
+                sigma[i] = np.sqrt(i)
+            sigma *= rcut / nmax
+
+        # Compute the radial and angular integrals numerically
+        # for different values of the pair distance r_ij and
+        # store the results in an array to generate the splines later on.
+        for ir, rij in enumerate(radii):
+            print(f'Radial distance {ir+1} out of {len(radii)}')
+            for l in range(lmax+1):
+                prefac = lambda r, c: f_cutoff(rij) * r**2 * eval_legendre(l, c)
+                dist = lambda r, c: np.sqrt(r**2+rij**2-2*r*rij*c + 1e-13)
+                density = lambda r, c: self.density_function(dist(r, c))
+                if radial_basis == 'gto':
+                    print('Use gto basis')
+                    transformation = self.orthonormalization_matrix
+                    for n in range(nmax):
+                        R_n_prim = lambda r: r**n*np.exp(-0.5*r**2/sigma[n]**2)
+                        R_n = lambda r: self.normalizations[n] * R_n_prim(r)
+                        integrand = lambda r,c: prefac(r,c)*R_n(r)*density(r,c)
+                        integrals[ir, n, l] = dblquad(integrand, 0, rcut, cosmin, cosmax, epsabs=1e-3, epsrel=1e-3)[0]
+                    integrals[ir, :, l] = transformation @ integrals[ir, :, l]
+
+                elif radial_basis == 'monomial':
+                    print('use monomials')
+                    normalization = np.sqrt((3 + 2*l) / (rcut**(3 + 2*l)))
+                    R_n = lambda r: normalization * r**l
+                    integrand = lambda r,c: prefac(r,c)*R_n(r)*density(r,c)
+                    integrals[ir, 0, l] = dblquad(integrand, 0, rcut, lambda x: -1, lambda x: 1)[0]
+
+        # Generate spline class object
+        self.radial_spline_realspace = CubicSpline(radii, integrals)
+
+
+
+
+    def compute_realspace_spline_numerically(self, Nspline = 5, smooth_cutoff_width=0., Nradial=100, Ntheta=100):
+        """
+        Numerically evaluate the double integral over the radius r and the
+        angle theta (or its cosine) appearing in the real space evaluation
+        of the projection coefficients and spline the result as a function
+        of the neighbor distance rij.
+        Warning: Currently, only the monomial basis is supported.
+        The density, on the other hand, is arbitrary and can be both
+        a Gaussian or a smeared Coulomb density.
+
+        Parameters
+        ----------
+        Nradii : INT, optional
+            Number of nodes to use in the spline
+        """
+        # Define shortcuts for more readable code
+        nmax = self.max_radial
+        lmax = self.max_angular
+        rcut = self.cutoff_radius
+        smearing = self.smearing
+        width = smooth_cutoff_width
+        ls = np.arange(lmax+1)
+
+        # Define the dimer distances over which to spline
+        rmin = 1e-6
+        radii = np.linspace(rmin, rcut, Nspline)
+
+        # If desired, add a smooth cutoff function that results in a
+        # continuous behavior of the coefficients as atoms enter or
+        # leave the cutoff ball.
+        f_smooth = lambda x: 0.5 * np.cos((x-rcut+width)*np.pi/width) + 0.5
+        f_cutoff = lambda x: np.where(rcut - x > width, 1, f_smooth(x))
+
+        # Start computing real space evaluation of density
+        # contribution for a neighbor atom as a function of the
+        # radial distance rij for different l-channels.
+        # Note that only the monomial basis is supported.
+        """integrals = np.zeros((Nspline, lmax+1))
+        for l in ls:
+            for ir, rij in enumerate(radii):
+                reff = lambda r, c: np.sqrt(r**2+rij**2-2*r*rij*c)
+                density = lambda r, c: self.density_function(reff(r, c))
+                prefacs = lambda r, c: f_cutoff(rij) * r**(2+l) * eval_legendre(l, c)
+                integrand = lambda r, c: prefacs(r,c) * density(r,c)
+                integrals[ir, l] = dblquad(integrand, 0, rcut, lambda x: -1, lambda x: 1)
+        """
+
+        #################################################
+        # General version that works for any radial basis
+        #################################################
+        integrals = np.zeros((Nspline, nmax, lmax + 1))
+        radial_basis = self.radial_basis
+
+        
+        # Generate length scales sigma_n for R_n(x)
+        if radial_basis in ['gto', 'gto_analytical', 'gto_primitive']:
             sigma = np.ones(nmax, dtype=float)
             for i in range(1, nmax):
                 sigma[i] = np.sqrt(i)
