@@ -319,7 +319,7 @@ class TestRadialProjection:
     @pytest.mark.parametrize("nmax", nmaxs)
     @pytest.mark.parametrize("lmax", [1])
     @pytest.mark.parametrize("p", [0, 1, 3, 6])
-    def test_agreement_gto_with_analytical(self, sigma, rcut, nmax, p, lmax):
+    def test_agreement_gto_with_analytical_center(self, sigma, rcut, nmax, p, lmax):
         radproj_numerical = RadialBasis(nmax, lmax, rcut, sigma, 'gto', True, potential_exponent=p)
         radproj_numerical.compute(2 * np.pi/sigma, Nradial=2000)
         center_contrib_numerical = radproj_numerical.center_contributions
@@ -329,6 +329,27 @@ class TestRadialProjection:
         center_contrib_analytical = radproj_analytical.center_contributions
 
         assert_allclose(center_contrib_numerical, center_contrib_analytical, rtol=2e-4)
+
+    # Same tests as above, but for the splines.
+    @pytest.mark.parametrize("sigma", smearings)
+    @pytest.mark.parametrize("rcut", rcuts)
+    @pytest.mark.parametrize("nmax", nmaxs)
+    @pytest.mark.parametrize("lmax", [1])
+    @pytest.mark.parametrize("p", [0, 1, 3, 6])
+    def test_agreement_gto_with_analytical_spline(self, sigma, rcut, nmax, p, lmax):
+        radproj_numerical = RadialBasis(nmax, lmax, rcut, sigma, 'gto', True, potential_exponent=p)
+        radproj_numerical.compute(2 * np.pi/sigma, Nradial=2000)
+        spline_numerical = lambda x: radproj_numerical.radial_spline(x)
+        
+        radproj_analytical = RadialBasis(nmax, lmax, rcut, sigma, 'gto_analytical', True, potential_exponent=p)
+        radproj_analytical.compute(2 * np.pi/sigma, Nradial=2000)
+        spline_analytical = lambda x: radproj_analytical.radial_spline(x)
+
+        # Evaluate the splines across the entire domain
+        kk = np.linspace(0, 2*np.pi/sigma, 500)
+        yy_numerical = spline_numerical(kk)
+        yy_analytical = spline_analytical(kk)
+        assert_allclose(yy_numerical, yy_analytical, rtol=3e-4, atol=2e-5)
 
     def test_center_contribution_monomial_longrange(self):
         # Define hyperparameters
