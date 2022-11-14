@@ -47,7 +47,7 @@ class DensityProjectionCalculatorSummed:
         Number of radial functions
     max_angular : int
         Number of angular functions
-    cutoff_radius : float
+    radial_basis_radius : float
         Environment cutoff (Å)
     smearing : float
         Smearing of the Gaussain (Å). Note that computational cost scales
@@ -106,7 +106,7 @@ class DensityProjectionCalculatorSummed:
     def __init__(self,
                  max_radial,
                  max_angular,
-                 cutoff_radius,
+                 radial_basis_radius,
                  smearing,
                  radial_basis,
                  compute_gradients=False,
@@ -116,7 +116,7 @@ class DensityProjectionCalculatorSummed:
         # Store the input variables
         self.max_radial = max_radial
         self.max_angular = max_angular
-        self.cutoff_radius = cutoff_radius
+        self.radial_basis_radius = cutoff_radius
         self.radial_basis = radial_basis.lower()
         self.smearing = smearing
         self.potential_exponent = potential_exponent
@@ -146,7 +146,7 @@ class DensityProjectionCalculatorSummed:
         # radial basis and (if desired) the center contributions
         self.radial_proj = RadialBasis(max_radial = self.max_radial,
             max_angular=self.max_angular,
-            cutoff_radius=self.cutoff_radius,
+            radial_basis_radius=self.radial_basis_radius,
             smearing=self.smearing,
             radial_basis=self.radial_basis,
             subtract_self=self.subtract_center_contribution,

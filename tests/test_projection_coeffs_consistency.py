@@ -47,7 +47,7 @@ class TestSuperCell():
 
         hypers = dict(max_radial=2,
                       max_angular=2,
-                      cutoff_radius=1,
+                      radial_basis_radius=1,
                       smearing=2,
                       radial_basis='GTO')
 
@@ -100,7 +100,7 @@ class TestSummedImplementation():
             'smearing':smearing,
             'max_angular':lmax,
             'max_radial':1,
-            'cutoff_radius':0.1,
+            'radial_basis_radius':0.1,
             'potential_exponent':potential_exponent,
             'radial_basis': radial_basis,
             'compute_gradients':False,
@@ -157,7 +157,7 @@ class TestGradients():
             'smearing':smearing,
             'max_angular':lmax,
             'max_radial':nmax,
-            'cutoff_radius':rcut,
+            'radial_basis_radius':rcut,
             'potential_exponent':0,
             'radial_basis': 'gto',
             'compute_gradients':True,
@@ -211,7 +211,7 @@ class TestSlowVSFastImplementation():
             'smearing': 2.5,
             'max_angular': 6,
             'max_radial': 1,
-            'cutoff_radius': 5.,
+            'radial_basis_radius': 5.,
             'potential_exponent': 1,
             'radial_basis': 'monomial',
             'compute_gradients': True,

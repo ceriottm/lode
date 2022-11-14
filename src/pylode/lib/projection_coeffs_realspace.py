@@ -41,7 +41,7 @@ class DensityProjectionCalculatorRealspace:
         Number of radial functions
     max_angular : int
         Number of angular functions
-    cutoff_radius : float
+    radial_basis_radius : float
         Environment cutoff (Å)
     smearing : float
         Smearing of the Gaussain (Å). Note that computational cost scales
@@ -100,7 +100,7 @@ class DensityProjectionCalculatorRealspace:
     def __init__(self,
                  max_radial,
                  max_angular,
-                 cutoff_radius,
+                 radial_basis_radius,
                  smearing,
                  radial_basis,
                  compute_gradients=False,
@@ -110,7 +110,7 @@ class DensityProjectionCalculatorRealspace:
         # Store the input variables
         self.max_radial = max_radial
         self.max_angular = max_angular
-        self.cutoff_radius = cutoff_radius
+        self.radial_basis_radius = radial_basis_radius
         self.radial_basis = radial_basis.lower()
         self.smearing = smearing
         self.potential_exponent = potential_exponent
@@ -141,7 +141,7 @@ class DensityProjectionCalculatorRealspace:
         # radial basis and (if desired) the center contributions
         self.radial_proj = RadialBasis(self.max_radial,
                                        self.max_angular,
-                                       self.cutoff_radius,
+                                       self.radial_basis_radius,
                                        self.smearing,
                                        self.radial_basis,
                                        potential_exponent,
@@ -283,7 +283,7 @@ class DensityProjectionCalculatorRealspace:
         global_factor = 2 * np.pi
         struc_factor = np.zeros(num_lm)
         struc_factor_grad = np.zeros(num_lm)
-        neighbor_list = NeighborList(frame, self.species_dict, self.cutoff_radius)
+        neighbor_list = NeighborList(frame, self.species_dict, self.radial_basis_radius)
 
         # Loop over center atom
         for i_center in range(num_atoms):

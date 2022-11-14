@@ -216,7 +216,7 @@ class TestRadialProjection:
         lmax = 0 # irrelevant for this code, but we still need to provide it
         radial_basis_hypers = {'max_radial':nmax,
                             'max_angular':lmax,
-                            'cutoff_radius':rcut,
+                            'radial_basis_radius':rcut,
                             'smearing':smearing,
                             'radial_basis':'gto_primitive',
                             'subtract_self':True,
@@ -257,7 +257,7 @@ class TestRadialProjection:
         lmax = 0 # irrelevant for this code, but we still need to provide it
         radial_basis_hypers = {'max_radial':nmax,
                             'max_angular':lmax,
-                            'cutoff_radius':rcut,
+                            'radial_basis_radius':rcut,
                             'smearing':smearing,
                             'radial_basis':'gto_primitive',
                             'subtract_self':True,
@@ -296,7 +296,7 @@ class TestRadialProjection:
         lmax = 0 # irrelevant for this code, but we still need to provide it
         radial_basis_hypers = {'max_radial':nmax,
                             'max_angular':lmax,
-                            'cutoff_radius':rcut,
+                            'radial_basis_radius':rcut,
                             'smearing':smearing,
                             'radial_basis':'gto_primitive',
                             'subtract_self':True,

@@ -53,7 +53,7 @@ class RadialBasis:
         Number of radial functions
     max_angular : int
         Number of angular functions
-    cutoff_radius : float
+    radial_basis_radius : float
         Environment cutoff (Å)
     smearing : float
         Smearing of the Gaussain (Å). Note that computational cost scales
@@ -80,7 +80,7 @@ class RadialBasis:
     def __init__(self,
                  max_radial,
                  max_angular,
-                 cutoff_radius,
+                 radial_basis_radius,
                  smearing,
                  radial_basis,
                  subtract_self=False,
@@ -89,7 +89,7 @@ class RadialBasis:
         self.smearing = smearing
         self.max_radial = max_radial
         self.max_angular = max_angular
-        self.cutoff_radius = cutoff_radius
+        self.radial_basis_radius = radial_basis_radius
         self.radial_basis = radial_basis.lower()
         self.potential_exponent = potential_exponent
 
@@ -125,7 +125,7 @@ class RadialBasis:
         # Define shortcuts for more readable code
         nmax = self.max_radial
         lmax = self.max_angular
-        rcut = self.cutoff_radius
+        rcut = self.radial_basis_radius
 
         self.center_contributions = np.zeros(nmax)
 
@@ -306,7 +306,7 @@ class RadialBasis:
         # Define shortcuts for commonly used variables
         nmax = self.max_radial
         lmax = self.max_angular
-        rcut = self.cutoff_radius
+        rcut = self.radial_basis_radius
         smearing = self.smearing
         width = smooth_cutoff_width
         transformation = self.orthonormalization_matrix
@@ -368,7 +368,7 @@ class RadialBasis:
         # Define shortcuts for more readable code
         nmax = self.max_radial
         lmax = self.max_angular
-        rcut = self.cutoff_radius
+        rcut = self.radial_basis_radius
         smearing = self.smearing
         width = smooth_cutoff_width
         ls = np.arange(lmax+1)
@@ -470,7 +470,7 @@ class RadialBasis:
         # Define shortcuts for more readable code
         nmax = self.max_radial
         lmax = self.max_angular
-        rcut = self.cutoff_radius
+        rcut = self.radial_basis_radius
         smearing = self.smearing
         width = smooth_cutoff_width
         ls = np.arange(lmax+1)
