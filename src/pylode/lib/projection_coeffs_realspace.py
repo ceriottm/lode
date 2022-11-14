@@ -118,7 +118,7 @@ class DensityProjectionCalculatorRealspace:
         self.subtract_center_contribution = subtract_center_contribution
         self.fast_implementation = fast_implementation
 
-        print('Start real space implementation')
+        logger.info('Start real space implementation')
         # Make sure that the provided parameters are consistent
         if self.potential_exponent not in [0, 1]:
             raise ValueError("Potential exponent has to be one of 0 or 1!")
@@ -147,8 +147,8 @@ class DensityProjectionCalculatorRealspace:
                                        potential_exponent,
                                        self.subtract_center_contribution)
         self.radial_proj.compute(1.0)
-        logger.log("Precalculate splines for radial integral. "
-                   "This might take a while...")
+        logger.info("Precalculate splines for radial integral. "
+                    "This might take a while...")
         self.radial_proj.compute_realspace_spline_from_analytical()
 
     def transform(self, frames, show_progress=False):
@@ -230,7 +230,7 @@ class DensityProjectionCalculatorRealspace:
             frame_generator = self.frames
 
         for i_frame, frame in enumerate(frame_generator):
-            print('Frame number = ', i_frame)
+            logger.info(f'Frame number = {i_frame}')
             number_of_atoms = self.num_atoms_per_frame[i_frame]
             results = self._transform_single_frame(frame)
 
