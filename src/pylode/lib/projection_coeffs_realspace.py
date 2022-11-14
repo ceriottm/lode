@@ -154,7 +154,7 @@ class DensityProjectionCalculatorRealspace:
         self.radial_proj.compute(1.0)
         logger.info("Precalculate splines for radial integral. "
                     "This might take a while...")
-        self.radial_proj.compute_realspace_spline_from_analytical()
+        self.radial_proj.compute_realspace_spline(rcut=self.cutoff_radius)
 
     def transform(self, frames, show_progress=False):
         """

@@ -350,7 +350,7 @@ class RadialBasis:
         # Generate spline class object
         self.radial_spline_realspace = CubicSpline(radii, integrals)
 
-    def compute_realspace_spline(self, Nspline = 5, smooth_cutoff_width=0.):
+    def compute_realspace_spline(self, rcut, Nspline = 5, smooth_cutoff_width=0.):
         """
         Numerically evaluate the double integral over the radius r and the
         angle theta (or its cosine) appearing in the real space evaluation
@@ -424,13 +424,11 @@ class RadialBasis:
         # for different values of the pair distance r_ij and
         # store the results in an array to generate the splines later on.
         for ir, rij in enumerate(radii):
-            print(f'Radial distance {ir+1} out of {len(radii)}')
             for l in range(lmax+1):
                 prefac = lambda r, c: f_cutoff(rij) * r**2 * eval_legendre(l, c)
                 dist = lambda r, c: np.sqrt(r**2+rij**2-2*r*rij*c + 1e-13)
                 density = lambda r, c: self.density_function(dist(r, c))
                 if radial_basis == 'gto':
-                    print('Use gto basis')
                     transformation = self.orthonormalization_matrix
                     for n in range(nmax):
                         R_n_prim = lambda r: r**n*np.exp(-0.5*r**2/sigma[n]**2)
@@ -440,7 +438,6 @@ class RadialBasis:
                     integrals[ir, :, l] = transformation @ integrals[ir, :, l]
 
                 elif radial_basis == 'monomial':
-                    print('use monomials')
                     normalization = np.sqrt((3 + 2*l) / (rcut**(3 + 2*l)))
                     R_n = lambda r: normalization * r**l
                     integrand = lambda r,c: prefac(r,c)*R_n(r)*density(r,c)
