@@ -103,6 +103,7 @@ class DensityProjectionCalculatorRealspace:
                  radial_basis_radius,
                  smearing,
                  radial_basis,
+                 cutoff_radius=None,
                  compute_gradients=False,
                  potential_exponent=1,
                  subtract_center_contribution=False,
@@ -117,6 +118,10 @@ class DensityProjectionCalculatorRealspace:
         self.compute_gradients = compute_gradients
         self.subtract_center_contribution = subtract_center_contribution
         self.fast_implementation = fast_implementation
+        if cutoff_radius == None:
+            self.cutoff_radius = radial_basis_radius
+        else:
+            self.cutoff_radius = cutoff_radius
 
         logger.info('Start real space implementation')
         # Make sure that the provided parameters are consistent
@@ -283,7 +288,7 @@ class DensityProjectionCalculatorRealspace:
         global_factor = 2 * np.pi
         struc_factor = np.zeros(num_lm)
         struc_factor_grad = np.zeros(num_lm)
-        neighbor_list = NeighborList(frame, self.species_dict, self.radial_basis_radius)
+        neighbor_list = NeighborList(frame, self.species_dict, self.cutoff_radius)
 
         # Loop over center atom
         for i_center in range(num_atoms):

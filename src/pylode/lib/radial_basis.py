@@ -302,11 +302,11 @@ class RadialBasis:
 
         self.radial_spline = CubicSpline(kk, projcoeffs)
 
-    def compute_realspace_spline_from_analytical(self, Nspline=100, smooth_cutoff_width=0.):
+    def compute_realspace_spline_from_analytical(self, rcut, Nspline=100, smooth_cutoff_width=0.):
         # Define shortcuts for commonly used variables
         nmax = self.max_radial
         lmax = self.max_angular
-        rcut = self.radial_basis_radius
+        # rcut = self.radial_basis_radius
         smearing = self.smearing
         width = smooth_cutoff_width
         transformation = self.orthonormalization_matrix
