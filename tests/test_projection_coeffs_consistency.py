@@ -202,21 +202,13 @@ class TestSlowVSFastImplementation():
     ."""
 
     def test_agreement_slow_vs_fast_implementation(self):
-        # Generate a simple data set containing O2 molecules
-        # TODO: use more realistic structures,
-        # ideally, some having a single chemical species (e.g. Phosphorus),
-        # + some binary systems (e.g. water) + more complex ones (BaTiO3)
-        frames = []
-        cell = np.eye(3) * 10
-        distances = np.linspace(1.5, 2., 20)
-        for d in distances:
-            positions = [[1, 1, 1], [1, 1, d + 1]]
-            frame = Atoms('O2', positions=positions, cell=cell, pbc=True)
-            frames.append(frame)
+        # Use a simple data set only having one chemical species
+        frames = read(os.path.join(REF_STRUCTS, "dispersion_test_frames.xyz"),
+                      ":")
 
         # Define hyperparameters to run tests
         hypers = {
-            'smearing': 1.5,
+            'smearing': 2.5,
             'max_angular': 6,
             'max_radial': 1,
             'cutoff_radius': 5.,
