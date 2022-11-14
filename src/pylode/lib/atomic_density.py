@@ -70,7 +70,7 @@ def gammainc_upper_over_powerlaw(p, zz):
     elif p==6:
         return ((2-4*zz)*np.exp(-zz) + 4*np.sqrt(np.pi)*zz**1.5*erfc(np.sqrt(zz)))/3
 
-class AtomicDensity():
+class AtomicDensity:
     """
     Class that contains all the necessary information to specify
     the type of atomic density (Gaussian, Dirac delta, Coulombic, etc.)

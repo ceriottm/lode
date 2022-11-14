@@ -14,7 +14,6 @@ More concretely, the tests make sure that:
 from re import I
 import numpy as np
 import pytest
-import scipy
 from scipy.special import gamma
 from numpy.testing import assert_allclose, assert_array_less
 

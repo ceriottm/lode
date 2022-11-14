@@ -33,7 +33,7 @@ def innerprod(xx, yy1, yy2):
     return simpson(integrand, xx)
 
 
-class RadialBasis():
+class RadialBasis:
     """
     Class for precomputing and storing all results related to the radial basis.
     

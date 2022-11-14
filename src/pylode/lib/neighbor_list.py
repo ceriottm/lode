@@ -8,7 +8,7 @@ projection coefficients.
 
 import numpy as np
 
-class NeighborList_Entry():
+class NeighborList_Entry:
     """
     Class for storing the neighbor information of a fixed center atom i
     and neighbor species a.
@@ -31,7 +31,7 @@ class NeighborList_Entry():
         self.entries['pair_distances'] = pair_distances
         self.entries['pair_vectors'] = pair_vectors
 
-class NeighborList():
+class NeighborList:
     """
     Class for generating a neighbor list including periodic images
     for a single ase.Atoms frame.

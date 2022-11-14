@@ -27,9 +27,9 @@ from .neighbor_list import NeighborList
 logger = logging.getLogger(__name__)
 
 
-class DensityProjectionCalculator_Realspace():
+class DensityProjectionCalculatorRealspace:
     """
-    Compute the spherical expansion coefficients.
+    Compute the spherical expansion coefficients in realspace.
 
     Initialize the calculator using the hyperparameters.
     All the needed splines that only depend on the hyperparameters
@@ -95,7 +95,7 @@ class DensityProjectionCalculator_Realspace():
         in librascal.
 
     representation_info : array
-        Stuff for interacting to interact with atomistic-ml-storage.
+        Metadata to interact with equsitore.
     """
     def __init__(self,
                  max_radial,
@@ -118,7 +118,7 @@ class DensityProjectionCalculator_Realspace():
         self.subtract_center_contribution = subtract_center_contribution
         self.fast_implementation = fast_implementation
 
-        print('Start real space implementation')
+        logger.info('Start real space implementation')
         # Make sure that the provided parameters are consistent
         if self.potential_exponent not in [0, 1]:
             raise ValueError("Potential exponent has to be one of 0 or 1!")
@@ -139,12 +139,16 @@ class DensityProjectionCalculator_Realspace():
         # only related to the choice of radial basis, namely the
         # projections of the spherical Bessel functions j_l(kr) onto the
         # radial basis and (if desired) the center contributions
-        self.radial_proj = RadialBasis(self.max_radial, self.max_angular,
-                                       self.cutoff_radius, self.smearing,
+        self.radial_proj = RadialBasis(self.max_radial,
+                                       self.max_angular,
+                                       self.cutoff_radius,
+                                       self.smearing,
                                        self.radial_basis,
                                        potential_exponent,
                                        self.subtract_center_contribution)
         self.radial_proj.compute(1.0)
+        logger.info("Precalculate splines for radial integral. "
+                    "This might take a while...")
         self.radial_proj.compute_realspace_spline_from_analytical()
 
     def transform(self, frames, show_progress=False):
@@ -226,7 +230,7 @@ class DensityProjectionCalculator_Realspace():
             frame_generator = self.frames
 
         for i_frame, frame in enumerate(frame_generator):
-            print('Frame number = ', i_frame)
+            logger.info(f'Frame number = {i_frame}')
             number_of_atoms = self.num_atoms_per_frame[i_frame]
             results = self._transform_single_frame(frame)
 

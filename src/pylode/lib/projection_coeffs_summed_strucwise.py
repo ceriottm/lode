@@ -10,7 +10,6 @@ angular channel l=0,1,2,...,lmax is supported.
 import logging
 
 import numpy as np
-from scipy.special import gammainc
 from scipy.integrate import quad
 
 try:
@@ -34,7 +33,7 @@ def gammainc_upper_numerical(n, zz):
         yy[iz] = quad(integrand, z, np.inf)[0]
     return yy
 
-class DensityProjectionCalculatorSummed():
+class DensityProjectionCalculatorSummed:
     """
     Compute the spherical expansion coefficients.
 
@@ -102,7 +101,7 @@ class DensityProjectionCalculatorSummed():
         in librascal.
 
     representation_info : array
-        Stuff for interacting to interact with atomistic-ml-storage.
+        Metadata to interact with equsitore.
     """
     def __init__(self,
                  max_radial,
