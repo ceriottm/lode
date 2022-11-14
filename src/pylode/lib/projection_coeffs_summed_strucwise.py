@@ -116,7 +116,7 @@ class DensityProjectionCalculatorSummed:
         # Store the input variables
         self.max_radial = max_radial
         self.max_angular = max_angular
-        self.radial_basis_radius = cutoff_radius
+        self.radial_basis_radius = radial_basis_radius
         self.radial_basis = radial_basis.lower()
         self.smearing = smearing
         self.potential_exponent = potential_exponent
