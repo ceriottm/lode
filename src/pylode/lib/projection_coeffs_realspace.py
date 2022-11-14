@@ -51,6 +51,9 @@ class DensityProjectionCalculatorRealspace:
         'GTO_primitive', 'GTO', 'monomial'.
         For monomial: Only use one radial basis r^l for each angular
         channel l leading to a total of (lmax+1)^2 features.
+    cutoff_radius : float
+        Spherical real space cutoff to use for atomic environments (Å).
+        If `None` the same cutoff_radius as radial_basis_radius is used.
     compute_gradients : bool
         Compute gradients
     potential_exponent : int
@@ -125,8 +128,8 @@ class DensityProjectionCalculatorRealspace:
 
         logger.info('Start real space implementation')
         # Make sure that the provided parameters are consistent
-        if self.potential_exponent not in [0, 1]:
-            raise ValueError("Potential exponent has to be one of 0 or 1!")
+        if self.potential_exponent not in [0, 1, 2, 3, 4, 5, 6]:
+            raise ValueError("Potential exponent has to be 0, 1, 2, ..., 6")
 
         if self.radial_basis not in ["monomial", "gto", "gto_primitive"]:
             raise ValueError(f"{self.radial_basis} is not an implemented basis"
