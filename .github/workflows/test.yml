@@ -19,5 +19,4 @@ jobs:
     - name: Install package and dependencies
       run: python -m pip install .[progressbar,test] -U
     - name: Test
-      run: pytest --nbval-lax -v tests notebooks
-
+      run: pytest --nbval-lax -v

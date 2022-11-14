@@ -26,7 +26,7 @@ from .atomic_density import AtomicDensity
 logger = logging.getLogger(__name__)
 
 
-class DensityProjectionCalculator():
+class DensityProjectionCalculator:
     """
     Compute the spherical expansion coefficients.
 
@@ -97,7 +97,7 @@ class DensityProjectionCalculator():
         in librascal.
 
     representation_info : array
-        Stuff for interacting to interact with atomistic-ml-storage.
+        Metadata to interact with equsitore.
     """
     def __init__(self,
                  max_radial,
