@@ -71,36 +71,33 @@ class TestAtomicDensity:
         relerr = abs(yy[0] - f0) / f0
         assert relerr < 2e-14
 
-    potential_exponents_sr = [4, 6]
-    # Check that the value at k=0 is correct
-    kvecs_to_test_near_field = np.array([1e-12, 1e-11])
     @pytest.mark.parametrize("smearing", smearings)
-    @pytest.mark.parametrize("p", potential_exponents_sr)
+    @pytest.mark.parametrize("p", [0, 4, 6])
     def test_convergence_at_zero_kspace(self, smearing, p):
+        """Test that the cenvergence at k=0 is correct."""
         # Get atomic density at tiny distance
         atomic_density = AtomicDensity(smearing, p)
-        kk = self.kvecs_to_test_near_field
+        kk = np.array([1e-12, 1e-11])
         yy = atomic_density.get_fourier_transform(kk)
         
         # Compare to value provided for k=0
         target = atomic_density.get_fourier_transform_at_zero()
+        print(p, np.ones_like(yy)*target)
         assert_allclose(np.ones_like(yy)*target, yy, rtol=1e-10, atol=1e-14)
-    
 
-    potential_exponents_sr = [4, 6]
-    # Check that the value at k=0 is correct
-    # For now, the exponent p=5 is excluded since
-    # there are extra singularities (due to how p=5 maps back to p=3)
-    kvecs_to_test_near_field = np.array([0])
     @pytest.mark.parametrize("smearing", smearings)
-    @pytest.mark.parametrize("p", potential_exponents_sr)
+    @pytest.mark.parametrize("p", [0, 4, 6])
     def test_value_at_zero_kspace(self, smearing, p):
+        """Test that the value at k=0 is correct.
+        
+        For now, the exponent p=5 is excluded since there are extra
+        singularities (due to how p=5 maps back to p=3)
+        """
         # Get atomic density at tiny distance
         atomic_density = AtomicDensity(smearing, p)
-        kk = self.kvecs_to_test_near_field
+        kk = np.array([0])
         yy = atomic_density.get_fourier_transform(kk)
         
         # Compare to value provided for k=0
         target = atomic_density.get_fourier_transform_at_zero()
         assert_allclose(np.ones_like(yy)*target, yy, rtol=1e-15, atol=1e-15)
-    
