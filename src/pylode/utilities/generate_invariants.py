@@ -26,16 +26,19 @@ def generate_degree2_invariants(coeffs):
 
     """
 
-    # Make sure the shapes match
-    # Since it is allowed to use a different nmax for both inputs,
-    # there are no checks for nmax.
-    num_env, num_species, nmax, lmmax = coeffs.shape
+    # Get the hyperparameters from the shape of the features
+    # pyLODE features have indices features[i,a,n,lm], where
+    # i is the index of the atom (within the whole data set)
+    # a is the chemical species
+    # n is the radial index
+    # lm is one index for the pair (l,m), l=0,1,...,lmax and |m|<=l
+    num_env, num_species, num_n, num_lm = coeffs.shape
     lmax = int(np.round(np.sqrt(lmmax))) - 1
     
     # Prepare array for invariants
     # If both inputs are different, use all possible species and radial 
     # combinations.
-    num_radial_inv = (nmax * (nmax+1))//2
+    num_radial_inv = (num_n * (num_n+1))//2
     num_species_inv = num_species**2 
     deg2_invariants = np.zeros((num_env, num_species_inv,
                                 num_radial_inv, lmax+1))
@@ -45,8 +48,8 @@ def generate_degree2_invariants(coeffs):
     for ia1 in range(num_species):
         for ia2 in range(num_species):
             species_idx = ia1 * num_species + ia2
-            for in1 in range(nmax):
-                for in2 in range(in1,nmax):
+            for in1 in range(num_n):
+                for in2 in range(in1,num_n):
                     for l in range(lmax+1):
                         vec1 = coeffs[:,ia1,in1,l**2:(l+1)**2]
                         vec2 = coeffs[:,ia2,in2,l**2:(l+1)**2]
